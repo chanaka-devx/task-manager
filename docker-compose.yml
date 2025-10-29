@@ -1,0 +1,32 @@
+version: "3.8"
+services:
+  frontend:
+    build: ./frontend
+    container_name: frontend_c
+    ports:
+      - '3000:3000'
+  backend:
+    build: ./backend
+    container_name: backend_c
+    ports:
+      - '4000:4000'
+    stdin_open: true
+    tty: true
+    environment:
+      - PORT=4000
+      - MONGODB_URI=mongodb+srv://mcm:DbHHbqIoanX4VvIm@qa.o4vmm4y.mongodb.net/?retryWrites=true&w=majority&appName=QA
+      - MONGODB_DB=authdb
+      - JWT_SECRET=2e4a69a43c44c83194e29f5e4481364a8960294e3c3e90cb048188ca850f9c18
+
+    depends_on:
+      - mongo
+  mongo:
+    image: mongo:7
+    container_name: mongo_c
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+volumes:
+  mongo_data:
