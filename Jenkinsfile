@@ -63,14 +63,14 @@ pipeline {
         sh label: 'Build backend image', script: """
           docker build \
             -f backend/Dockerfile \
-            -t ${BACKEND_IMAGE_REF} \
+            -t ${env.BACKEND_IMAGE_REF} \
             backend
         """
 
         sh label: 'Build frontend image', script: """
           docker build \
             -f frontend/Dockerfile \
-            -t ${FRONTEND_IMAGE_REF} \
+            -t ${env.FRONTEND_IMAGE_REF} \
             frontend
         """
       }
@@ -93,8 +93,8 @@ pipeline {
               def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
 
               sh """
-                docker tag ${BACKEND_IMAGE_REF} ${backendLatest}
-                docker tag ${FRONTEND_IMAGE_REF} ${frontendLatest}
+                docker tag ${env.BACKEND_IMAGE_REF} ${backendLatest}
+                docker tag ${env.FRONTEND_IMAGE_REF} ${frontendLatest}
                 docker push ${backendLatest}
                 docker push ${frontendLatest}
               """
