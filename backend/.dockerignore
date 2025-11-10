@@ -1,0 +1,21 @@
+# Ignore dependencies and local files
+node_modules
+npm-debug.log
+.yarn
+.pnpm-store
+
+# Environment and secrets
+.env
+.env.*
+
+# VCS
+.git
+.gitignore
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+
+# OS/editor cruft
+.DS_Store
+*.swp

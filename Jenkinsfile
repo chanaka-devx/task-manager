@@ -60,19 +60,32 @@ pipeline {
 
     stage('Docker Build') {
       steps {
-        sh label: 'Build backend image', script: """
-          docker build \
-            -f backend/Dockerfile \
-            -t ${env.BACKEND_IMAGE_REF} \
-            backend
-        """
+        script {
+          def backendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${env.SANITIZED_BRANCH}-${env.GIT_SHORT_SHA}"
+          def frontendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${env.SANITIZED_BRANCH}-${env.GIT_SHORT_SHA}"
 
-        sh label: 'Build frontend image', script: """
-          docker build \
-            -f frontend/Dockerfile \
-            -t ${env.FRONTEND_IMAGE_REF} \
-            frontend
-        """
+          // Echo for visibility
+          echo "Building Backend: ${backendImageRef}"
+          echo "Building Frontend: ${frontendImageRef}"
+
+          sh label: 'Build backend image', script: """
+            docker build \
+              -f backend/Dockerfile \
+              -t ${backendImageRef} \
+              backend
+          """
+
+          sh label: 'Build frontend image', script: """
+            docker build \
+              -f frontend/Dockerfile \
+              -t ${frontendImageRef} \
+              frontend
+          """
+
+          // Persist for later stages
+          env.BACKEND_IMAGE_REF = backendImageRef
+          env.FRONTEND_IMAGE_REF = frontendImageRef
+        }
       }
     }
 
