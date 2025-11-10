@@ -132,14 +132,39 @@ pipeline {
                         def backendImage = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${sanitizedBranch}-${gitSha}"
                         def frontendImage = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${sanitizedBranch}-${gitSha}"
                         
-                        echo "Logging in to Docker Hub..."
-                        sh 'echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin'
+                        echo "Logging in to Docker Hub as ${DOCKERHUB_USER}..."
+                        sh '''
+                          set -e
+                          echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin 2>&1 | tee /tmp/docker-login.log
+                          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+                            echo "ERROR: Docker login failed"
+                            cat /tmp/docker-login.log
+                            exit 1
+                          fi
+                          echo "Docker login successful"
+                        '''
 
                         echo "Pushing Backend: ${backendImage}"
-                        sh "docker push ${backendImage}"
+                        sh """
+                          set -e
+                          docker push ${backendImage} 2>&1 | tee /tmp/backend-push.log
+                          if [ \${PIPESTATUS[0]} -ne 0 ]; then
+                            echo "ERROR: Backend push failed. Log:"
+                            cat /tmp/backend-push.log
+                            exit 1
+                          fi
+                        """
 
                         echo "Pushing Frontend: ${frontendImage}"
-                        sh "docker push ${frontendImage}"
+                        sh """
+                          set -e
+                          docker push ${frontendImage} 2>&1 | tee /tmp/frontend-push.log
+                          if [ \${PIPESTATUS[0]} -ne 0 ]; then
+                            echo "ERROR: Frontend push failed. Log:"
+                            cat /tmp/frontend-push.log
+                            exit 1
+                          fi
+                        """
 
                         // Push latest tag if main/master
                         boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (sanitizedBranch == 'main' || sanitizedBranch == 'master')
@@ -148,10 +173,21 @@ pipeline {
                             def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
                             echo "Also pushing latest tags..."
                             sh """
+                                set -e
                                 docker tag ${backendImage} ${backendLatest}
                                 docker tag ${frontendImage} ${frontendLatest}
-                                docker push ${backendLatest}
-                                docker push ${frontendLatest}
+                                docker push ${backendLatest} 2>&1 | tee /tmp/backend-latest-push.log
+                                if [ \${PIPESTATUS[0]} -ne 0 ]; then
+                                  echo "ERROR: Backend latest push failed"
+                                  cat /tmp/backend-latest-push.log
+                                  exit 1
+                                fi
+                                docker push ${frontendLatest} 2>&1 | tee /tmp/frontend-latest-push.log
+                                if [ \${PIPESTATUS[0]} -ne 0 ]; then
+                                  echo "ERROR: Frontend latest push failed"
+                                  cat /tmp/frontend-latest-push.log
+                                  exit 1
+                                fi
                             """
                         } else {
                             echo "Skipping latest tag push for branch ${sanitizedBranch}"
