@@ -109,8 +109,8 @@ pipeline {
 
             boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (env.SANITIZED_BRANCH == 'main' || env.SANITIZED_BRANCH == 'master')
             if (pushLatest) {
-              def backendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:latest"
-              def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
+              def backendLatest = "chanakamadhuranga/task-manager-server:latest"
+              def frontendLatest = "chanakamadhuranga/task-manager:latest"
 
               sh """
                 docker tag ${backendImageRef} ${backendLatest}
