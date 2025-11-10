@@ -17,8 +17,7 @@ pipeline {
     string(name: 'DO_SSH_HOST', defaultValue: 'root@143.198.197.174', description: 'DigitalOcean droplet in the form user@host (e.g., root@1.2.3.4). Leave empty to skip deploy.')
     string(name: 'DO_SSH_CREDENTIALS_ID', defaultValue: 'droplet-ssh', description: 'Jenkins SSH Credentials ID (private key or username+password) for the droplet')
     string(name: 'DEPLOY_PATH', defaultValue: '/opt/task-manager', description: 'Remote path on the droplet to store compose file and state')
-    string(name: 'MONGODB_URI', defaultValue: 'mongodb://localhost:27017/taskmanager
-', description: 'MongoDB connection string for the backend (optional here, recommended to use Jenkins Credentials)')
+    string(name: 'MONGODB_URI', defaultValue: 'mongodb://localhost:27017/taskmanager', description: 'MongoDB connection string for the backend (optional here, recommended to use Jenkins Credentials)')
     string(name: 'JWT_SECRET', defaultValue: '2e4a69a43c44c83194e29f5e4481364a8960294e3c3e90cb048188ca850f9c18', description: 'JWT secret for the backend (optional here, recommended to use Jenkins Credentials)')
     booleanParam(name: 'PUSH_LATEST_ON_MAIN', defaultValue: true, description: 'Also tag and push latest when building main branch')
   }
