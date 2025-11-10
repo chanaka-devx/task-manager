@@ -8,7 +8,7 @@ pipeline {
     }
 
     parameters {
-        string(name: 'DOCKERHUB_NAMESPACE', defaultValue: 'chanaka', description: 'Docker Hub username/org')
+        string(name: 'DOCKERHUB_NAMESPACE', defaultValue: 'chanakamadhuranga', description: 'Docker Hub username/org')
         string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: 'c29e8c4d-bd5e-457c-8911-d7805bf37143', description: 'Jenkins credentials for Docker Hub')
         string(name: 'BACKEND_IMAGE', defaultValue: 'task-manager-server', description: 'Backend image name')
         string(name: 'FRONTEND_IMAGE', defaultValue: 'task-manager', description: 'Frontend image name')
@@ -72,10 +72,10 @@ pipeline {
                         sh 'echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin'
 
                         echo "Pushing Backend: ${env.BACKEND_IMAGE_REF}"
-                        sh "docker push \"${env.BACKEND_IMAGE_REF}\""
+                        sh "docker push ${env.BACKEND_IMAGE_REF}"
 
                         echo "Pushing Frontend: ${env.FRONTEND_IMAGE_REF}"
-                        sh "docker push \"${env.FRONTEND_IMAGE_REF}\""
+                        sh "docker push ${env.FRONTEND_IMAGE_REF}"
 
                         // Push latest tag if main/master
                         boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (env.SANITIZED_BRANCH == 'main' || env.SANITIZED_BRANCH == 'master')
