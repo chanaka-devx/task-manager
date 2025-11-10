@@ -33,6 +33,27 @@ pipeline {
       }
     }
 
+    stage('Docker Sanity') {
+      steps {
+        sh label: 'Check Docker CLI and daemon access', script: '''
+          set -e
+          # Ensure docker CLI exists and can talk to the daemon
+          if ! docker version >/dev/null 2>&1; then
+            echo "ERROR: Docker CLI not available or Docker daemon not reachable from this Jenkins agent."
+            echo "Fix: Install Docker, ensure the daemon is running, and grant the Jenkins user access to the Docker socket."
+            exit 2
+          fi
+
+          # Basic socket permission hint (Linux hosts)
+          if [ -S /var/run/docker.sock ] && [ ! -w /var/run/docker.sock ]; then
+            echo "ERROR: Jenkins user lacks write access to /var/run/docker.sock."
+            echo "Fix: Add Jenkins user to the 'docker' group and restart Jenkins (e.g., sudo usermod -aG docker jenkins; sudo systemctl restart jenkins)."
+            exit 3
+          fi
+        '''
+      }
+    }
+
     stage('Prep') {
       steps {
         script {
@@ -61,8 +82,22 @@ pipeline {
     stage('Docker Build') {
       steps {
         script {
-          def backendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${env.SANITIZED_BRANCH}-${env.GIT_SHORT_SHA}"
-          def frontendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${env.SANITIZED_BRANCH}-${env.GIT_SHORT_SHA}"
+          // Fallback (re)compute branch/SHA in case environment wasn't populated
+          def computedSha = env.GIT_SHORT_SHA
+          if (!computedSha) {
+            computedSha = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+            env.GIT_SHORT_SHA = computedSha
+          }
+
+          def computedBranch = env.SANITIZED_BRANCH
+          if (!computedBranch) {
+            def raw = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+            computedBranch = raw.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
+            env.SANITIZED_BRANCH = computedBranch
+          }
+
+          def backendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${computedBranch}-${computedSha}"
+          def frontendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${computedBranch}-${computedSha}"
 
           // Echo for visibility
           echo "Building Backend: ${backendImageRef}"
