@@ -18,8 +18,9 @@ pipeline {
     environment {
         GIT_SHORT_SHA = ''
         SANITIZED_BRANCH = ''
-        BACKEND_IMAGE_REF = ''
-        FRONTEND_IMAGE_REF = ''
+        SHORT_TAG = ''
+        BACKEND_LOCAL = ''
+        FRONTEND_LOCAL = ''
     }
 
     stages {
@@ -32,18 +33,20 @@ pipeline {
         stage('Prep') {
             steps {
                 script {
-                    env.GIT_SHORT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    // Prefer Jenkins-provided GIT_COMMIT/BRANCH if available, fallback to local git
+                    env.GIT_SHORT_SHA = (env.GIT_COMMIT ? env.GIT_COMMIT.take(7) : sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim())
                     def rawBranch = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
                     env.SANITIZED_BRANCH = rawBranch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
 
-                    // Compute image refs
-                    env.BACKEND_IMAGE_REF = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${env.SANITIZED_BRANCH}-${env.GIT_SHORT_SHA}"
-                    env.FRONTEND_IMAGE_REF = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${env.SANITIZED_BRANCH}-${env.GIT_SHORT_SHA}"
+                    // Use local-only tags for build; derive remote tags later during push (avoids null params in multibranch)
+                    env.SHORT_TAG = "${env.SANITIZED_BRANCH}-${env.GIT_SHORT_SHA}"
+                    env.BACKEND_LOCAL = "taskmgr-backend:${env.SHORT_TAG}"
+                    env.FRONTEND_LOCAL = "taskmgr-frontend:${env.SHORT_TAG}"
 
                     echo "Branch: ${rawBranch} -> ${env.SANITIZED_BRANCH}"
                     echo "Commit SHA: ${env.GIT_SHORT_SHA}"
-                    echo "Backend Image: ${env.BACKEND_IMAGE_REF}"
-                    echo "Frontend Image: ${env.FRONTEND_IMAGE_REF}"
+                    echo "Local Backend tag: ${env.BACKEND_LOCAL}"
+                    echo "Local Frontend tag: ${env.FRONTEND_LOCAL}"
                 }
             }
         }
@@ -51,14 +54,14 @@ pipeline {
         stage('Docker Build') {
             steps {
                 script {
-                    echo "Building Backend: ${env.BACKEND_IMAGE_REF}"
+                    echo "Building Backend image as ${env.BACKEND_LOCAL}"
                     sh """
-                        docker build -f backend/Dockerfile -t ${env.BACKEND_IMAGE_REF} backend
+                        docker build -f backend/Dockerfile -t ${env.BACKEND_LOCAL} backend
                     """
 
-                    echo "Building Frontend: ${env.FRONTEND_IMAGE_REF}"
+                    echo "Building Frontend image as ${env.FRONTEND_LOCAL}"
                     sh """
-                        docker build -f frontend/Dockerfile -t ${env.FRONTEND_IMAGE_REF} frontend
+                        docker build -f frontend/Dockerfile -t ${env.FRONTEND_LOCAL} frontend
                     """
                 }
             }
@@ -71,21 +74,35 @@ pipeline {
                         echo "Logging in to Docker Hub..."
                         sh 'echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin'
 
-                        echo "Pushing Backend: ${env.BACKEND_IMAGE_REF}"
-                        sh "docker push ${env.BACKEND_IMAGE_REF}"
+                        // Resolve namespace: prefer parameter if provided; otherwise fall back to Docker Hub username from credentials
+                        def namespace = (params.DOCKERHUB_NAMESPACE?.trim()) ?: (DOCKERHUB_USER?.trim())
+                        if (!namespace) {
+                            error "Docker Hub namespace is not set. Provide DOCKERHUB_NAMESPACE parameter or ensure credentials have a username."
+                        }
 
-                        echo "Pushing Frontend: ${env.FRONTEND_IMAGE_REF}"
-                        sh "docker push ${env.FRONTEND_IMAGE_REF}"
+                        def backendName = (params.BACKEND_IMAGE?.trim()) ?: 'task-manager-server'
+                        def frontendName = (params.FRONTEND_IMAGE?.trim()) ?: 'task-manager'
+
+                        def backendRemote = "${namespace}/${backendName}:${env.SHORT_TAG}"
+                        def frontendRemote = "${namespace}/${frontendName}:${env.SHORT_TAG}"
+
+                        echo "Tagging for push -> Backend: ${backendRemote} | Frontend: ${frontendRemote}"
+                        sh """
+                            docker tag ${env.BACKEND_LOCAL} ${backendRemote}
+                            docker tag ${env.FRONTEND_LOCAL} ${frontendRemote}
+                            docker push ${backendRemote}
+                            docker push ${frontendRemote}
+                        """
 
                         // Push latest tag if main/master
                         boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (env.SANITIZED_BRANCH == 'main' || env.SANITIZED_BRANCH == 'master')
                         if (pushLatest) {
-                            def backendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:latest"
-                            def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
+                            def backendLatest = "${namespace}/${backendName}:latest"
+                            def frontendLatest = "${namespace}/${frontendName}:latest"
                             echo "Also pushing latest tags..."
                             sh """
-                                docker tag ${env.BACKEND_IMAGE_REF} ${backendLatest}
-                                docker tag ${env.FRONTEND_IMAGE_REF} ${frontendLatest}
+                                docker tag ${env.BACKEND_LOCAL} ${backendLatest}
+                                docker tag ${env.FRONTEND_LOCAL} ${frontendLatest}
                                 docker push ${backendLatest}
                                 docker push ${frontendLatest}
                             """
