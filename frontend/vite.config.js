@@ -27,7 +27,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    // Use default Vite dev port 5173 so logs and compose mapping match
+    port: 5173,
     strictPort: true,
     host: true,
   },

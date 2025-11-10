@@ -20,8 +20,8 @@ RUN npm ci --no-audit --no-fund
 # Copy the rest of your application
 COPY . .
 
-# Expose the app port (configured in vite.config.js)
-EXPOSE 3000
+# Expose the Vite dev server port
+EXPOSE 5173
 
 # Run the app (dev server bound to 0.0.0.0 for container access)
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]

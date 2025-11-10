@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and fill in values
+do_token      = "dop_...your_token_here..."
+ssh_key_name  = "your-ssh-key-name-in-do"
+region        = "nyc3"
+droplet_size  = "s-1vcpu-1gb"
+project_name  = "task-manager"
+
+# If your repository is elsewhere, change this
+repo_url      = "https://github.com/chanaka-devx/task-manager.git"
+repo_branch   = "main"
+compose_file  = "docker-compose.yml"
+
+# Ports to open to the internet; 22 is SSH, 3000 frontend, 4000 backend
+allowed_inbound_ports = ["22", "3000", "4000"]

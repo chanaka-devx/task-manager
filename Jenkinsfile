@@ -163,79 +163,7 @@ pipeline {
             }
         }
 
-    stage('Deploy to DigitalOcean') {
-      when {
-        expression { return params.DO_SSH_HOST?.trim() && params.DO_SSH_CREDENTIALS_ID?.trim() }
-      }
-      steps {
-        script {
-                      // Prefer computed & persisted refs; recompute if missing
-                      def gitSha = env.GIT_SHORT_SHA ?: sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-                      def rawBranch = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-                      def sanitizedBranch = env.SANITIZED_BRANCH ?: rawBranch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
-                      def backendImage = env.BACKEND_IMAGE_REF ?: "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${sanitizedBranch}-${gitSha}"
-                      def frontendImage = env.FRONTEND_IMAGE_REF ?: "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${sanitizedBranch}-${gitSha}"
-                      def remotePath = params.DEPLOY_PATH ?: '/opt/task-manager'
-
-                      echo "Deploying to ${params.DO_SSH_HOST} at ${remotePath}"
-
-          sshagent(credentials: [params.DO_SSH_CREDENTIALS_ID]) {
-            sh label: 'Remote deploy via SSH', script: """
-                          set -e
-                          ssh -o StrictHostKeyChecking=no ${params.DO_SSH_HOST} 'mkdir -p ${remotePath}'
-                          ssh -o StrictHostKeyChecking=no ${params.DO_SSH_HOST} 'bash -s' <<'REMOTE'
-                          set -e
-                          APP_DIR='${remotePath}'
-                          cd "$APP_DIR"
-                          if docker compose version >/dev/null 2>&1; then
-                            COMPOSE_BIN='docker compose'
-                          else
-                            COMPOSE_BIN='docker-compose'
-                          fi
-                          cat > docker-compose.yml <<'YAML'
-                          version: "3.8"
-                          services:
-                            frontend:
-                              image: ${frontendImage}
-                              container_name: frontend_c
-                              restart: unless-stopped
-                              ports:
-                                - "3000:3000"
-                            backend:
-                              image: ${backendImage}
-                              container_name: backend_c
-                              restart: unless-stopped
-                              ports:
-                                - "4000:4000"
-                              environment:
-                                - PORT=4000
-                                - MONGODB_URI=\"${params.MONGODB_URI}\"
-                                - MONGODB_DB=authdb
-                                - JWT_SECRET=\"${params.JWT_SECRET}\"
-                              depends_on:
-                                - mongo
-                            mongo:
-                              image: mongo:7
-                              restart: unless-stopped
-                              ports:
-                                - "27017:27017"
-                              volumes:
-                                - mongo_data:/data/db
-                          volumes:
-                            mongo_data:
-                          YAML
-                          $COMPOSE_BIN pull || true
-                          $COMPOSE_BIN up -d
-                          $COMPOSE_BIN ps
-                          docker image prune -f || true
-            REMOTE
-            """
-          }
-        }
-      }
-    }
   }
-
   post {
     always {
       // Attempt to clean up dangling images from this build to save space
