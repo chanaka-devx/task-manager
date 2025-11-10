@@ -60,50 +60,62 @@ pipeline {
 
     stage('Docker Build') {
       steps {
-        sh label: 'Build backend image', script: """
-          docker build \
-            -f backend/Dockerfile \
-            -t ${BACKEND_IMAGE_REF} \
-            backend
-        """
+        script {
+          // Use env vars computed in Prep
+          def backendImageRef = env.BACKEND_IMAGE_REF
+          def frontendImageRef = env.FRONTEND_IMAGE_REF
 
-        sh label: 'Build frontend image', script: """
-          docker build \
-            -f frontend/Dockerfile \
-            -t ${FRONTEND_IMAGE_REF} \
-            frontend
-        """
+          echo "Building Backend: ${backendImageRef}"
+          echo "Building Frontend: ${frontendImageRef}"
+
+          sh label: 'Build backend image', script: """
+            docker build \
+              -f backend/Dockerfile \
+              -t ${backendImageRef} \
+              backend
+          """
+
+          sh label: 'Build frontend image', script: """
+            docker build \
+              -f frontend/Dockerfile \
+              -t ${frontendImageRef} \
+              frontend
+          """
+        }
       }
     }
 
     stage('Docker Push') {
       steps {
-        withCredentials([usernamePassword(credentialsId: params.REGISTRY_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-          sh '''
-            set -e
-            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-            docker push "$BACKEND_IMAGE_REF"
-            docker push "$FRONTEND_IMAGE_REF"
-          '''
+        script {
+          def backendImageRef = env.BACKEND_IMAGE_REF
+          def frontendImageRef = env.FRONTEND_IMAGE_REF
 
-          script {
+          withCredentials([usernamePassword(credentialsId: params.REGISTRY_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+            sh """
+              set -e
+              echo "\$DOCKERHUB_PASS" | docker login -u "\$DOCKERHUB_USER" --password-stdin
+              docker push "${backendImageRef}"
+              docker push "${frontendImageRef}"
+            """
+
             boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (env.SANITIZED_BRANCH == 'main' || env.SANITIZED_BRANCH == 'master')
             if (pushLatest) {
               def backendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:latest"
               def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
 
               sh """
-                docker tag ${BACKEND_IMAGE_REF} ${backendLatest}
-                docker tag ${FRONTEND_IMAGE_REF} ${frontendLatest}
+                docker tag ${backendImageRef} ${backendLatest}
+                docker tag ${frontendImageRef} ${frontendLatest}
                 docker push ${backendLatest}
                 docker push ${frontendLatest}
               """
             } else {
               echo "Skipping latest tag push (branch=${env.SANITIZED_BRANCH}, PUSH_LATEST_ON_MAIN=${params.PUSH_LATEST_ON_MAIN})"
             }
-          }
 
-          sh 'docker logout || true'
+            sh 'docker logout || true'
+          }
         }
       }
     }
