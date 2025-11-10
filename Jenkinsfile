@@ -10,14 +10,14 @@ pipeline {
   parameters {
     string(name: 'DOCKERHUB_NAMESPACE', defaultValue: 'chanakamadhuranga', description: 'Docker Hub namespace (username or org) to push images to')
     string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: 'c29e8c4d-bd5e-457c-8911-d7805bf37143', description: 'Jenkins Credentials ID (Username with password) for Docker Hub')
-    string(name: 'BACKEND_IMAGE', defaultValue: 'task-manager-new-server', description: 'Backend image repository name')
-    string(name: 'FRONTEND_IMAGE', defaultValue: 'task-manager-new', description: 'Frontend image repository name')
+    string(name: 'BACKEND_IMAGE', defaultValue: 'task-manager-server', description: 'Backend image repository name')
+    string(name: 'FRONTEND_IMAGE', defaultValue: 'task-manager-', description: 'Frontend image repository name')
     string(name: 'NPM_REGISTRY', defaultValue: 'https://registry.npmjs.org/', description: 'Optional custom NPM registry (mirror) to use during Docker builds')
     // Deployment parameters
     string(name: 'DO_SSH_HOST', defaultValue: 'root@143.198.197.174', description: 'DigitalOcean droplet in the form user@host (e.g., root@1.2.3.4). Leave empty to skip deploy.')
     string(name: 'DO_SSH_CREDENTIALS_ID', defaultValue: 'droplet-ssh', description: 'Jenkins SSH Credentials ID (private key or username+password) for the droplet')
     string(name: 'DEPLOY_PATH', defaultValue: '/opt/task-manager', description: 'Remote path on the droplet to store compose file and state')
-    string(name: 'MONGODB_URI', defaultValue: 'mongodb+srv://mcm:DbHHbqIoanX4VvIm@qa.o4vmm4y.mongodb.net/?retryWrites=true&w=majority&appName=QA', description: 'MongoDB connection string for the backend (optional here, recommended to use Jenkins Credentials)')
+    string(name: 'MONGODB_URI', defaultValue: 'mongodb://localhost:27017/taskmanager', description: 'MongoDB connection string for the backend (optional here, recommended to use Jenkins Credentials)')
     string(name: 'JWT_SECRET', defaultValue: '2e4a69a43c44c83194e29f5e4481364a8960294e3c3e90cb048188ca850f9c18', description: 'JWT secret for the backend (optional here, recommended to use Jenkins Credentials)')
     booleanParam(name: 'PUSH_LATEST_ON_MAIN', defaultValue: true, description: 'Also tag and push latest when building main branch')
   }
@@ -132,14 +132,42 @@ pipeline {
                         def backendImage = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${sanitizedBranch}-${gitSha}"
                         def frontendImage = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${sanitizedBranch}-${gitSha}"
                         
-                        echo "Logging in to Docker Hub..."
-                        sh 'echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin'
+                        echo "Preparing to push images to Docker Hub..."
+                        // Basic diagnostics to aid debugging when push appears to fail without logs
+                        sh '''
+                          set -e
+                          echo "Docker client:"; docker --version || true
+                          echo "Current user:"; id || true
+                          echo "Effective DOCKERHUB_USER: ${DOCKERHUB_USER}"
+                          if [ -z "$DOCKERHUB_USER" ] || [ -z "$DOCKERHUB_PASS" ]; then
+                            echo "ERROR: Missing Docker Hub credentials. Check credentialsId: ${REGISTRY_CREDENTIALS_ID}" >&2
+                            exit 2
+                          fi
+                          echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+                        '''
 
                         echo "Pushing Backend: ${backendImage}"
-                        sh "docker push ${backendImage}"
+                        sh """
+                          set -eux
+                          # Ensure the image exists locally with the expected tag
+                          docker image inspect ${backendImage} >/dev/null 2>&1 || {
+                            echo 'Local image not found:' ${backendImage}
+                            docker images | head -n 100 || true
+                            exit 3
+                          }
+                          docker push ${backendImage}
+                        """
 
                         echo "Pushing Frontend: ${frontendImage}"
-                        sh "docker push ${frontendImage}"
+                        sh """
+                          set -eux
+                          docker image inspect ${frontendImage} >/dev/null 2>&1 || {
+                            echo 'Local image not found:' ${frontendImage}
+                            docker images | head -n 100 || true
+                            exit 3
+                          }
+                          docker push ${frontendImage}
+                        """
 
                         // Push latest tag if main/master
                         boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (sanitizedBranch == 'main' || sanitizedBranch == 'master')
@@ -147,12 +175,13 @@ pipeline {
                             def backendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:latest"
                             def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
                             echo "Also pushing latest tags..."
-                            sh """
-                                docker tag ${backendImage} ${backendLatest}
-                                docker tag ${frontendImage} ${frontendLatest}
-                                docker push ${backendLatest}
-                                docker push ${frontendLatest}
-                            """
+              sh """
+                set -eux
+                docker tag ${backendImage} ${backendLatest}
+                docker tag ${frontendImage} ${frontendLatest}
+                docker push ${backendLatest}
+                docker push ${frontendLatest}
+              """
                         } else {
                             echo "Skipping latest tag push for branch ${sanitizedBranch}"
                         }
