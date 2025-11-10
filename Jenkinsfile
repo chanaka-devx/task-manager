@@ -8,7 +8,7 @@ pipeline {
 
 
   parameters {
-    string(name: 'DOCKERHUB_NAMESPACE', defaultValue: 'chanakamadhuranga', description: 'Docker Hub namespace (username or org) to push images to')
+    string(name: 'DOCKERHUB_NAMESPACE', defaultValue: 'chanaka', description: 'Docker Hub namespace (username or org) to push images to')
     string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: 'c29e8c4d-bd5e-457c-8911-d7805bf37143', description: 'Jenkins Credentials ID (Username with password) for Docker Hub')
     string(name: 'BACKEND_IMAGE', defaultValue: 'task-manager-server', description: 'Backend image repository name')
     string(name: 'FRONTEND_IMAGE', defaultValue: 'task-manager', description: 'Frontend image repository name')
@@ -30,27 +30,6 @@ pipeline {
     stage('Checkout') {
       steps {
         checkout scm
-      }
-    }
-
-    stage('Docker Sanity') {
-      steps {
-        sh label: 'Check Docker CLI and daemon access', script: '''
-          set -e
-          # Ensure docker CLI exists and can talk to the daemon
-          if ! docker version >/dev/null 2>&1; then
-            echo "ERROR: Docker CLI not available or Docker daemon not reachable from this Jenkins agent."
-            echo "Fix: Install Docker, ensure the daemon is running, and grant the Jenkins user access to the Docker socket."
-            exit 2
-          fi
-
-          # Basic socket permission hint (Linux hosts)
-          if [ -S /var/run/docker.sock ] && [ ! -w /var/run/docker.sock ]; then
-            echo "ERROR: Jenkins user lacks write access to /var/run/docker.sock."
-            echo "Fix: Add Jenkins user to the 'docker' group and restart Jenkins (e.g., sudo usermod -aG docker jenkins; sudo systemctl restart jenkins)."
-            exit 3
-          fi
-        '''
       }
     }
 
@@ -81,46 +60,19 @@ pipeline {
 
     stage('Docker Build') {
       steps {
-        script {
-          // Fallback (re)compute branch/SHA in case environment wasn't populated
-          def computedSha = env.GIT_SHORT_SHA
-          if (!computedSha) {
-            computedSha = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-            env.GIT_SHORT_SHA = computedSha
-          }
+        sh label: 'Build backend image', script: """
+          docker build \
+            -f backend/Dockerfile \
+            -t ${BACKEND_IMAGE_REF} \
+            backend
+        """
 
-          def computedBranch = env.SANITIZED_BRANCH
-          if (!computedBranch) {
-            def raw = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-            computedBranch = raw.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
-            env.SANITIZED_BRANCH = computedBranch
-          }
-
-          def backendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${computedBranch}-${computedSha}"
-          def frontendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${computedBranch}-${computedSha}"
-
-          // Echo for visibility
-          echo "Building Backend: ${backendImageRef}"
-          echo "Building Frontend: ${frontendImageRef}"
-
-          sh label: 'Build backend image', script: """
-            docker build \
-              -f backend/Dockerfile \
-              -t ${backendImageRef} \
-              backend
-          """
-
-          sh label: 'Build frontend image', script: """
-            docker build \
-              -f frontend/Dockerfile \
-              -t ${frontendImageRef} \
-              frontend
-          """
-
-          // Persist for later stages
-          env.BACKEND_IMAGE_REF = backendImageRef
-          env.FRONTEND_IMAGE_REF = frontendImageRef
-        }
+        sh label: 'Build frontend image', script: """
+          docker build \
+            -f frontend/Dockerfile \
+            -t ${FRONTEND_IMAGE_REF} \
+            frontend
+        """
       }
     }
 
@@ -141,8 +93,8 @@ pipeline {
               def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
 
               sh """
-                docker tag ${env.BACKEND_IMAGE_REF} ${backendLatest}
-                docker tag ${env.FRONTEND_IMAGE_REF} ${frontendLatest}
+                docker tag ${BACKEND_IMAGE_REF} ${backendLatest}
+                docker tag ${FRONTEND_IMAGE_REF} ${frontendLatest}
                 docker push ${backendLatest}
                 docker push ${frontendLatest}
               """
