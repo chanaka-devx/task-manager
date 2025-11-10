@@ -1,25 +1,42 @@
-# Use official Node.js image
-FROM node:22-alpine
+# 1) Builder stage: install deps and build static assets
+FROM node:22-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy only package files first (for build caching)
+# Optional proxy args (passed from Jenkins if present)
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ENV HTTP_PROXY=${HTTP_PROXY}
+ENV HTTPS_PROXY=${HTTPS_PROXY}
+ENV NO_PROXY=${NO_PROXY}
+
+# Copy only package files first for better layer caching
 COPY package*.json ./
 
-# Configure npm for slow networks and retry automatically
-RUN npm config set fetch-timeout 600000 \
- && npm config set fetch-retries 5 \
- && npm config set registry https://registry.npmjs.org/
+# NPM config tuned for slow or flaky networks
+RUN npm config set registry https://registry.npmjs.org/ \
+ && npm config set fetch-retries 6 \
+ && npm config set fetch-retry-mintimeout 20000 \
+ && npm config set fetch-retry-maxtimeout 120000 \
+ && npm config set fetch-timeout 600000 \
+ && npm config set network-timeout 600000 \
+ && npm config set fund false \
+ && npm config set audit false
 
-# Install dependencies
-RUN npm install
+# Prefer reproducible installs; fall back to npm install if no lockfile
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
-# Copy the rest of your application
+# Copy source and build
 COPY . .
+RUN npm run build
 
-# Expose the app port
-EXPOSE 3000
+# 2) Runtime stage: serve static files with nginx
+FROM nginx:alpine AS runtime
 
-# Run the app
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Copy built assets
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Minimal nginx config (optional: could add gzip, caching headers later)
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
