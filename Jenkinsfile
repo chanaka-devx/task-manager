@@ -71,32 +71,6 @@ pipeline {
                         echo "Logging in to Docker Hub..."
                         sh 'echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin'
 
-                        // Sanity check the namespace used for tagging vs. the logged-in username.
-                        // If they differ and no org push is intended, retag to the login username to avoid access denied errors.
-                        def loginUser = (env.DOCKERHUB_USER ?: '').trim()
-                        def paramNs = (params.DOCKERHUB_NAMESPACE ?: '').trim()
-
-                        if (!paramNs && loginUser) {
-                            echo "DOCKERHUB_NAMESPACE parameter was empty; defaulting to login username '${loginUser}'."
-                            paramNs = loginUser
-                        }
-
-                        if (loginUser && paramNs && loginUser != paramNs) {
-                            echo "Warning: DOCKERHUB_NAMESPACE ('${paramNs}') differs from Docker Hub login username ('${loginUser}')."
-                            echo "If you intended to push to an org '${paramNs}', ensure credentials have org permissions. Otherwise retagging to '${loginUser}'."
-
-                            def backendRetag = "${loginUser}/${params.BACKEND_IMAGE}:${env.SANITIZED_BRANCH}-${env.GIT_SHORT_SHA}"
-                            def frontendRetag = "${loginUser}/${params.FRONTEND_IMAGE}:${env.SANITIZED_BRANCH}-${env.GIT_SHORT_SHA}"
-
-                            sh """
-                                docker tag ${env.BACKEND_IMAGE_REF} ${backendRetag}
-                                docker tag ${env.FRONTEND_IMAGE_REF} ${frontendRetag}
-                            """
-
-                            env.BACKEND_IMAGE_REF = backendRetag
-                            env.FRONTEND_IMAGE_REF = frontendRetag
-                        }
-
                         echo "Pushing Backend: ${env.BACKEND_IMAGE_REF}"
                         sh "docker push ${env.BACKEND_IMAGE_REF}"
 
@@ -106,9 +80,8 @@ pipeline {
                         // Push latest tag if main/master
                         boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (env.SANITIZED_BRANCH == 'main' || env.SANITIZED_BRANCH == 'master')
                         if (pushLatest) {
-                            // Derive :latest from the final refs actually being pushed
-                            def backendLatest = env.BACKEND_IMAGE_REF.split(':')[0] + ':latest'
-                            def frontendLatest = env.FRONTEND_IMAGE_REF.split(':')[0] + ':latest'
+                            def backendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:latest"
+                            def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
                             echo "Also pushing latest tags..."
                             sh """
                                 docker tag ${env.BACKEND_IMAGE_REF} ${backendLatest}
