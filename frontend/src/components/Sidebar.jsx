@@ -21,9 +21,11 @@ const Sidebar = ({ collapsed = false }) => {
     <aside className={`${baseAside} ${widthClass}`}>
       {/* Header (brand only, external toggle button used) */}
       <div className={`flex items-center transition-all duration-300 ${collapsed ? 'justify-center py-6' : 'space-x-3 p-6'}`}>
-        <div>
-            <img src={logo} alt="Nora Task Manager Logo" className="w-10 h-10 rounded-xl" />
-        </div>
+        <Link to="/" className="flex items-center space-x-3 group" aria-label="Nora Home">
+            <div>
+                <img src={logo} alt="Nora Task Manager Logo" className="w-10 h-10 rounded-xl" />
+            </div>
+        </Link>
         <span className={`text-2xl font-bold text-[#111827] whitespace-nowrap transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>Nora</span>
       </div>
 
