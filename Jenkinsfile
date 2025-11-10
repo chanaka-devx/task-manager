@@ -10,8 +10,8 @@ pipeline {
   parameters {
     string(name: 'DOCKERHUB_NAMESPACE', defaultValue: 'chanakamadhuranga', description: 'Docker Hub namespace (username or org) to push images to')
     string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: 'c29e8c4d-bd5e-457c-8911-d7805bf37143', description: 'Jenkins Credentials ID (Username with password) for Docker Hub')
-    string(name: 'BACKEND_IMAGE', defaultValue: 'task-manager-server', description: 'Backend image repository name')
-    string(name: 'FRONTEND_IMAGE', defaultValue: 'task-manager', description: 'Frontend image repository name')
+    string(name: 'BACKEND_IMAGE', defaultValue: 'task-manager-new-server', description: 'Backend image repository name')
+    string(name: 'FRONTEND_IMAGE', defaultValue: 'task-manager-new', description: 'Frontend image repository name')
     string(name: 'NPM_REGISTRY', defaultValue: 'https://registry.npmjs.org/', description: 'Optional custom NPM registry (mirror) to use during Docker builds')
     // Deployment parameters
     string(name: 'DO_SSH_HOST', defaultValue: 'root@143.198.197.174', description: 'DigitalOcean droplet in the form user@host (e.g., root@1.2.3.4). Leave empty to skip deploy.')
