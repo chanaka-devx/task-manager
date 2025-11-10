@@ -12,6 +12,7 @@ pipeline {
     string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: 'c29e8c4d-bd5e-457c-8911-d7805bf37143', description: 'Jenkins Credentials ID (Username with password) for Docker Hub')
     string(name: 'BACKEND_IMAGE', defaultValue: 'task-manager-server', description: 'Backend image repository name')
     string(name: 'FRONTEND_IMAGE', defaultValue: 'task-manager', description: 'Frontend image repository name')
+    string(name: 'NPM_REGISTRY', defaultValue: 'https://registry.npmjs.org/', description: 'Optional custom NPM registry (mirror) to use during Docker builds')
     booleanParam(name: 'PUSH_LATEST_ON_MAIN', defaultValue: true, description: 'Also tag and push latest when building main branch')
   }
 
@@ -58,6 +59,17 @@ pipeline {
       }
     }
 
+    stage('Docker Env Inspect') {
+      steps {
+        script {
+          // Check if buildx plugin exists; non-fatal if missing
+          sh "docker buildx version || echo 'docker buildx plugin not found; using legacy builder.'"
+          // Show info for debugging network timeouts
+          sh "docker info | grep -E 'Version|Storage Driver|HTTP Proxy|HTTPS Proxy' || true"
+        }
+      }
+    }
+
     stage('Docker Build') {
       steps {
         script {
@@ -72,10 +84,18 @@ pipeline {
           echo "Building Backend: ${backendImageRef}"
           echo "Building Frontend: ${frontendImageRef}"
 
+          // Build-args for proxies (if set on the agent) and npm registry
+          def proxyArgs = ''
+          if (env.HTTP_PROXY)  { proxyArgs += " --build-arg HTTP_PROXY='${env.HTTP_PROXY}' --build-arg http_proxy='${env.HTTP_PROXY}'" }
+          if (env.HTTPS_PROXY) { proxyArgs += " --build-arg HTTPS_PROXY='${env.HTTPS_PROXY}' --build-arg https_proxy='${env.HTTPS_PROXY}'" }
+          if (env.NO_PROXY)    { proxyArgs += " --build-arg NO_PROXY='${env.NO_PROXY}' --build-arg no_proxy='${env.NO_PROXY}'" }
+
           sh label: 'Build backend image', script: """
             docker build \
               -f backend/Dockerfile \
               -t '${backendImageRef}' \
+              ${proxyArgs} \
+              --build-arg NPM_REGISTRY='${params.NPM_REGISTRY}' \
               backend
           """
 
@@ -83,6 +103,8 @@ pipeline {
             docker build \
               -f frontend/Dockerfile \
               -t '${frontendImageRef}' \
+              ${proxyArgs} \
+              --build-arg NPM_REGISTRY='${params.NPM_REGISTRY}' \
               frontend
           """
           
