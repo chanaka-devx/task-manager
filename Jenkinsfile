@@ -61,9 +61,13 @@ pipeline {
     stage('Docker Build') {
       steps {
         script {
-          // Use env vars computed in Prep
-          def backendImageRef = env.BACKEND_IMAGE_REF
-          def frontendImageRef = env.FRONTEND_IMAGE_REF
+          // Recompute to ensure values are present
+          def computedSha = env.GIT_SHORT_SHA ?: sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          def rawBranch = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+          def computedBranch = env.SANITIZED_BRANCH ?: rawBranch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
+          
+          def backendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${computedBranch}-${computedSha}"
+          def frontendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${computedBranch}-${computedSha}"
 
           echo "Building Backend: ${backendImageRef}"
           echo "Building Frontend: ${frontendImageRef}"
@@ -71,16 +75,20 @@ pipeline {
           sh label: 'Build backend image', script: """
             docker build \
               -f backend/Dockerfile \
-              -t ${backendImageRef} \
+              -t '${backendImageRef}' \
               backend
           """
 
           sh label: 'Build frontend image', script: """
             docker build \
               -f frontend/Dockerfile \
-              -t ${frontendImageRef} \
+              -t '${frontendImageRef}' \
               frontend
           """
+          
+          // Persist for push stage
+          env.BACKEND_IMAGE_REF = backendImageRef
+          env.FRONTEND_IMAGE_REF = frontendImageRef
         }
       }
     }
