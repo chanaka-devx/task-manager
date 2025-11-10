@@ -132,42 +132,14 @@ pipeline {
                         def backendImage = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${sanitizedBranch}-${gitSha}"
                         def frontendImage = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${sanitizedBranch}-${gitSha}"
                         
-                        echo "Preparing to push images to Docker Hub..."
-                        // Basic diagnostics to aid debugging when push appears to fail without logs
-                        sh '''
-                          set -e
-                          echo "Docker client:"; docker --version || true
-                          echo "Current user:"; id || true
-                          echo "Effective DOCKERHUB_USER: ${DOCKERHUB_USER}"
-                          if [ -z "$DOCKERHUB_USER" ] || [ -z "$DOCKERHUB_PASS" ]; then
-                            echo "ERROR: Missing Docker Hub credentials. Check credentialsId: ${REGISTRY_CREDENTIALS_ID}" >&2
-                            exit 2
-                          fi
-                          echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-                        '''
+                        echo "Logging in to Docker Hub..."
+                        sh 'echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin'
 
                         echo "Pushing Backend: ${backendImage}"
-                        sh """
-                          set -eux
-                          # Ensure the image exists locally with the expected tag
-                          docker image inspect ${backendImage} >/dev/null 2>&1 || {
-                            echo 'Local image not found:' ${backendImage}
-                            docker images | head -n 100 || true
-                            exit 3
-                          }
-                          docker push ${backendImage}
-                        """
+                        sh "docker push ${backendImage}"
 
                         echo "Pushing Frontend: ${frontendImage}"
-                        sh """
-                          set -eux
-                          docker image inspect ${frontendImage} >/dev/null 2>&1 || {
-                            echo 'Local image not found:' ${frontendImage}
-                            docker images | head -n 100 || true
-                            exit 3
-                          }
-                          docker push ${frontendImage}
-                        """
+                        sh "docker push ${frontendImage}"
 
                         // Push latest tag if main/master
                         boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (sanitizedBranch == 'main' || sanitizedBranch == 'master')
@@ -175,13 +147,12 @@ pipeline {
                             def backendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:latest"
                             def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
                             echo "Also pushing latest tags..."
-              sh """
-                set -eux
-                docker tag ${backendImage} ${backendLatest}
-                docker tag ${frontendImage} ${frontendLatest}
-                docker push ${backendLatest}
-                docker push ${frontendLatest}
-              """
+                            sh """
+                                docker tag ${backendImage} ${backendLatest}
+                                docker tag ${frontendImage} ${frontendLatest}
+                                docker push ${backendLatest}
+                                docker push ${frontendLatest}
+                            """
                         } else {
                             echo "Skipping latest tag push for branch ${sanitizedBranch}"
                         }
@@ -189,8 +160,8 @@ pipeline {
                         sh 'docker logout || true'
                     }
                 }
-      }
-    }
+            }
+        }
 
     stage('Deploy to DigitalOcean') {
       when {
