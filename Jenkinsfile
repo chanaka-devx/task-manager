@@ -122,9 +122,9 @@ pipeline {
     }
 
     stage('Docker Push') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: params.REGISTRY_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-                    script {
+      steps {
+        withCredentials([usernamePassword(credentialsId: params.REGISTRY_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+          script {
                         def gitSha = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
                         def rawBranch = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
                         def sanitizedBranch = rawBranch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
@@ -157,17 +157,18 @@ pipeline {
                             echo "Skipping latest tag push for branch ${sanitizedBranch}"
                         }
 
-                        sh 'docker logout || true'
-                    }
-                }
-            }
+            sh 'docker logout || true'
+          }
+        }
+      }
+    }
 
-                stage('Deploy to DigitalOcean') {
-                  when {
-                    expression { return params.DO_SSH_HOST?.trim() && params.DO_SSH_CREDENTIALS_ID?.trim() }
-                  }
-                  steps {
-                    script {
+    stage('Deploy to DigitalOcean') {
+      when {
+        expression { return params.DO_SSH_HOST?.trim() && params.DO_SSH_CREDENTIALS_ID?.trim() }
+      }
+      steps {
+        script {
                       // Prefer computed & persisted refs; recompute if missing
                       def gitSha = env.GIT_SHORT_SHA ?: sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
                       def rawBranch = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
@@ -178,8 +179,8 @@ pipeline {
 
                       echo "Deploying to ${params.DO_SSH_HOST} at ${remotePath}"
 
-                      sshagent(credentials: [params.DO_SSH_CREDENTIALS_ID]) {
-                        sh label: 'Remote deploy via SSH', script: """
+          sshagent(credentials: [params.DO_SSH_CREDENTIALS_ID]) {
+            sh label: 'Remote deploy via SSH', script: """
                           set -e
                           ssh -o StrictHostKeyChecking=no ${params.DO_SSH_HOST} 'mkdir -p ${remotePath}'
                           ssh -o StrictHostKeyChecking=no ${params.DO_SSH_HOST} 'bash -s' <<'REMOTE'
@@ -228,13 +229,12 @@ pipeline {
                           $COMPOSE_BIN ps
                           docker image prune -f || true
             REMOTE
-                        """
-                      }
-                    }
-                  }
-                }
+            """
+          }
         }
+      }
     }
+  }
 
   post {
     always {
