@@ -13,6 +13,13 @@ pipeline {
     string(name: 'BACKEND_IMAGE', defaultValue: 'task-manager-server', description: 'Backend image repository name')
     string(name: 'FRONTEND_IMAGE', defaultValue: 'task-manager', description: 'Frontend image repository name')
     string(name: 'NPM_REGISTRY', defaultValue: 'https://registry.npmjs.org/', description: 'Optional custom NPM registry (mirror) to use during Docker builds')
+    // Deployment parameters
+    string(name: 'DO_SSH_HOST', defaultValue: 'root@143.198.197.174', description: 'DigitalOcean droplet in the form user@host (e.g., root@1.2.3.4). Leave empty to skip deploy.')
+    string(name: 'DO_SSH_CREDENTIALS_ID', defaultValue: 'droplet-ssh', description: 'Jenkins SSH Credentials ID (private key or username+password) for the droplet')
+    string(name: 'DEPLOY_PATH', defaultValue: '/opt/task-manager', description: 'Remote path on the droplet to store compose file and state')
+    string(name: 'MONGODB_URI', defaultValue: 'mongodb://localhost:27017/taskmanager
+', description: 'MongoDB connection string for the backend (optional here, recommended to use Jenkins Credentials)')
+    string(name: 'JWT_SECRET', defaultValue: '2e4a69a43c44c83194e29f5e4481364a8960294e3c3e90cb048188ca850f9c18', description: 'JWT secret for the backend (optional here, recommended to use Jenkins Credentials)')
     booleanParam(name: 'PUSH_LATEST_ON_MAIN', defaultValue: true, description: 'Also tag and push latest when building main branch')
   }
 
@@ -155,6 +162,78 @@ pipeline {
                     }
                 }
             }
+
+                stage('Deploy to DigitalOcean') {
+                  when {
+                    expression { return params.DO_SSH_HOST?.trim() && params.DO_SSH_CREDENTIALS_ID?.trim() }
+                  }
+                  steps {
+                    script {
+                      // Prefer computed & persisted refs; recompute if missing
+                      def gitSha = env.GIT_SHORT_SHA ?: sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                      def rawBranch = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                      def sanitizedBranch = env.SANITIZED_BRANCH ?: rawBranch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
+                      def backendImage = env.BACKEND_IMAGE_REF ?: "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${sanitizedBranch}-${gitSha}"
+                      def frontendImage = env.FRONTEND_IMAGE_REF ?: "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${sanitizedBranch}-${gitSha}"
+                      def remotePath = params.DEPLOY_PATH ?: '/opt/task-manager'
+
+                      echo "Deploying to ${params.DO_SSH_HOST} at ${remotePath}"
+
+                      sshagent(credentials: [params.DO_SSH_CREDENTIALS_ID]) {
+                        sh label: 'Remote deploy via SSH', script: """
+                          set -e
+                          ssh -o StrictHostKeyChecking=no ${params.DO_SSH_HOST} 'mkdir -p ${remotePath}'
+                          ssh -o StrictHostKeyChecking=no ${params.DO_SSH_HOST} 'bash -s' <<'REMOTE'
+                          set -e
+                          APP_DIR='${remotePath}'
+                          cd "$APP_DIR"
+                          if docker compose version >/dev/null 2>&1; then
+                            COMPOSE_BIN='docker compose'
+                          else
+                            COMPOSE_BIN='docker-compose'
+                          fi
+                          cat > docker-compose.yml <<'YAML'
+                          version: "3.8"
+                          services:
+                            frontend:
+                              image: ${frontendImage}
+                              container_name: frontend_c
+                              restart: unless-stopped
+                              ports:
+                                - "3000:3000"
+                            backend:
+                              image: ${backendImage}
+                              container_name: backend_c
+                              restart: unless-stopped
+                              ports:
+                                - "4000:4000"
+                              environment:
+                                - PORT=4000
+                                - MONGODB_URI=\"${params.MONGODB_URI}\"
+                                - MONGODB_DB=authdb
+                                - JWT_SECRET=\"${params.JWT_SECRET}\"
+                              depends_on:
+                                - mongo
+                            mongo:
+                              image: mongo:7
+                              restart: unless-stopped
+                              ports:
+                                - "27017:27017"
+                              volumes:
+                                - mongo_data:/data/db
+                          volumes:
+                            mongo_data:
+                          YAML
+                          $COMPOSE_BIN pull || true
+                          $COMPOSE_BIN up -d
+                          $COMPOSE_BIN ps
+                          docker image prune -f || true
+            REMOTE
+                        """
+                      }
+                    }
+                  }
+                }
         }
     }
 
