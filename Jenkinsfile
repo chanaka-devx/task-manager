@@ -160,8 +160,7 @@ pipeline {
                         sh 'docker logout || true'
                     }
                 }
-            }
-        }
+      }
     }
 
     stage('Deploy to DigitalOcean') {
