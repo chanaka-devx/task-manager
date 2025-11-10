@@ -8,9 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Configure npm for slow networks and retry automatically
-RUN npm config set fetch-timeout 600000 \
- && npm config set fetch-retries 5 \
- && npm config set registry https://registry.npmjs.org/
+RUN npm ci --prefer-offline --no-audit
 
 # Install dependencies
 RUN npm install
