@@ -34,7 +34,7 @@ const Login = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`${VITE_API_BASE_URL}/api/login`, {
+      const response = await fetch('http://157.245.121.145:4000/api/login', {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

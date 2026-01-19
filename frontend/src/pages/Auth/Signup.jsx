@@ -49,7 +49,7 @@ const Signup = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`${VITE_API_BASE_URL}/api/signup`, {
+      const response = await fetch('http://157.245.121.145:4000/api/signup', {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
