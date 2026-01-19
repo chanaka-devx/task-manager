@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Lock, Mail, ArrowRight, CheckCircle, Zap, Target, Sparkles } from "lucide-react";
 import useAuth from "../../context/useAuth";
+import { VITE_API_BASE_URL } from "../../env";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -33,7 +34,7 @@ const Login = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://backend:4000/api/login", {
+      const response = await fetch(`${VITE_API_BASE_URL}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
