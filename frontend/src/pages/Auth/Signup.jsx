@@ -48,7 +48,7 @@ const Signup = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/signup", {
+      const response = await fetch("http://backend:4000/api/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

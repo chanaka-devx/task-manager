@@ -1,14 +1,7 @@
 # Use official Node.js image
 FROM node:22-alpine
 
-# Accept a custom npm registry (useful for CI mirrors or proxies)
-ARG NPM_REGISTRY=https://registry.npmjs.org/
-ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY \
-	NPM_CONFIG_FETCH_TIMEOUT=600000 \
-	NPM_CONFIG_FETCH_RETRIES=5 \
-	NPM_CONFIG_LOGLEVEL=warn
-
-# Set working directory
+# working directory
 WORKDIR /app
 
 # Copy only package files first (for build caching)

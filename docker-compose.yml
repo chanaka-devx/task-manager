@@ -4,6 +4,10 @@ services:
     container_name: frontend_c
     ports:
       - '5173:5173'
+    environment:
+      - VITE_API_BASE_URL=http://backend:4000
+    depends_on:
+      - backend
   backend:
     build: ./backend
     container_name: backend_c
@@ -13,18 +17,15 @@ services:
     tty: true
     environment:
       - PORT=4000
-      - MONGODB_URI=mongodb+srv://mcm:DbHHbqIoanX4VvIm@qa.o4vmm4y.mongodb.net/?retryWrites=true&w=majority&appName=QA
-      - MONGODB_DB=authdb
+      - MONGODB_URI=mongodb://mongo:27017/mydb 
       - JWT_SECRET=2e4a69a43c44c83194e29f5e4481364a8960294e3c3e90cb048188ca850f9c18
 
     depends_on:
       - mongo
   mongo:
-    image: mongo:7
+    image: mongo:6
     container_name: mongo_c
     restart: unless-stopped
-    ports:
-      - '27017:27017'
     volumes:
       - mongo_data:/data/db
 volumes:
