@@ -6,6 +6,9 @@ pipeline {
     disableConcurrentBuilds()
   }
 
+  triggers {
+    githubPush()
+  }
 
   parameters {
     string(name: 'DOCKERHUB_NAMESPACE', defaultValue: 'chanakamadhuranga', description: 'Docker Hub namespace (username or org) to push images to')
