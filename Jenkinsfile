@@ -145,25 +145,83 @@ pipeline {
       }
     }
 
-    stage('Provision Infrastructure') {
-            steps {
-                sh '''
-                cd terraform
-                terraform init
-                terraform apply -auto-approve
-                '''
-            }
-        }
+    stage('Deploy') {
+      when {
+        branch 'main'
+      }
+      steps {
+        script {
+          echo "Deploying to ${env.DEPLOY_HOST}..."
+          
+          def backendImage = "${env.DOCKERHUB_USERNAME}/${env.BACKEND_IMAGE}:latest"
+          def frontendImage = "${env.DOCKERHUB_USERNAME}/${env.FRONTEND_IMAGE}:latest"
+          
+          // Create docker-compose content with latest images
+          def composeContent = """
+version: '3.8'
 
-    stage('Deploy Application') {
-            steps {
-                sh '''
-                cd ansible
-                ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbook.yml
+services:
+  frontend:
+    image: ${frontendImage}
+    container_name: taskmanager-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://129.212.232.43:4000
+    depends_on:
+      - backend
+    networks:
+      - taskmanager-network
 
-                '''
-            }
+  backend:
+    image: ${backendImage}
+    container_name: taskmanager-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - MONGODB_URI=${env.MONGODB_URI}
+      - JWT_SECRET=2e4a69a43c44c83194e29f5e4481364a8960294e3c3e90cb048188ca850f9c18
+      - NODE_ENV=production
+    depends_on:
+      - mongo
+    networks:
+      - taskmanager-network
+
+  mongo:
+    image: mongo:6
+    container_name: taskmanager-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - taskmanager-network
+
+volumes:
+  mongo_data:
+
+networks:
+  taskmanager-network:
+    driver: bridge
+"""
+          
+          // Write compose file
+          writeFile file: 'docker-compose.deploy.yml', text: composeContent
+          
+          // Deploy to server
+          sh """
+            scp -o StrictHostKeyChecking=no docker-compose.deploy.yml ${env.DEPLOY_HOST}:/root/docker-compose.yml
+            ssh -o StrictHostKeyChecking=no ${env.DEPLOY_HOST} 'docker-compose pull && docker-compose down && docker-compose up -d'
+          """
+          
+          echo "Deployment complete! Images deployed:"
+          echo "  Backend: ${backendImage}"
+          echo "  Frontend: ${frontendImage}"
         }
+      }
+    }
   }
 
   post {
