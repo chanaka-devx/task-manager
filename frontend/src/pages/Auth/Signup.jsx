@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Lock, Mail, ArrowRight, User, UserPlus, Sparkles } from "lucide-react";
 import useAuth from "../../context/useAuth";
-import { VITE_API_BASE_URL } from "../../env";
+import { BASE_URL } from "../../config/apiConfig";
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -49,7 +49,7 @@ const Signup = () => {
 
     try {
       setLoading(true);
-      const response = await fetch('http://129.212.232.43:4000/api/signup', {
+      const response = await fetch(`${BASE_URL}/api/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
