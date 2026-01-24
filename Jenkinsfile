@@ -125,7 +125,8 @@ pipeline {
             steps {
                 sh '''
                 cd ansible
-                ansible-playbook -i inventory.ini playbook.yml
+                ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbook.yml
+
                 '''
             }
         }
