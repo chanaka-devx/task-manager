@@ -1,0 +1,43 @@
+- hosts: task_manager
+  become: true
+
+  tasks:
+    - name: Install Docker
+      apt:
+        name: docker.io
+        update_cache: yes
+
+    - name: Install Python Docker SDK
+      apt:
+        name: python3-docker
+        state: present
+
+    - name: Start Docker
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Run MongoDB container
+      docker_container:
+        name: mongodb
+        image: mongo
+        state: started
+        ports:
+          - "27017:27017"
+
+    - name: Run Backend container
+      docker_container:
+        name: backend
+        image: chanakamadhuranga/task-manager-server:latest
+        state: started
+        ports:
+          - "4000:4000"
+
+    - name: Run Frontend container
+      docker_container:
+        name: frontend
+        image: chanakamadhuranga/task-manager:latest
+        state: started
+        ports:
+          - "5173:5173"

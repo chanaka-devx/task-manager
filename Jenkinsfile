@@ -108,77 +108,24 @@ pipeline {
       }
     }
 
-    stage('Deploy') {
-      when {
-        branch 'main'
-      }
-      steps {
-        script {
-          echo "Deploying to ${env.DEPLOY_HOST}..."
-          
-          def backendImage = "${env.DOCKERHUB_USERNAME}/${env.BACKEND_IMAGE}:${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
-          def frontendImage = "${env.DOCKERHUB_USERNAME}/${env.FRONTEND_IMAGE}:${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
-          
-          // Create docker-compose content
-          def composeContent = """
-version: '3.8'
-
-services:
-  mongo:
-    image: mongo:latest
-    container_name: taskmanager-mongo
-    restart: unless-stopped
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - taskmanager-network
-
-  backend:
-    image: ${backendImage}
-    container_name: taskmanager-backend
-    restart: unless-stopped
-    ports:
-      - "5000:5000"
-    environment:
-      - MONGODB_URI=${env.MONGODB_URI}
-      - NODE_ENV=production
-    depends_on:
-      - mongo
-    networks:
-      - taskmanager-network
-
-  frontend:
-    image: ${frontendImage}
-    container_name: taskmanager-frontend
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    networks:
-      - taskmanager-network
-
-volumes:
-  mongo_data:
-
-networks:
-  taskmanager-network:
-    driver: bridge
-"""
-          
-          // Write compose file
-          writeFile file: 'docker-compose.yml', text: composeContent
-          
-          // Deploy to server
-          sh """
-            scp -o StrictHostKeyChecking=no docker-compose.yml ${env.DEPLOY_HOST}:/root/
-            ssh -o StrictHostKeyChecking=no ${env.DEPLOY_HOST} 'cd /root && docker-compose pull && docker-compose up -d'
-          """
-          
-          echo "Deployment complete!"
+    stage('Provision Infrastructure') {
+            steps {
+                sh '''
+                cd terraform
+                terraform init
+                terraform apply -auto-approve
+                '''
+            }
         }
-      }
-    }
+
+    stage('Deploy Application') {
+            steps {
+                sh '''
+                cd ansible
+                ansible-playbook -i inventory.ini playbook.yml
+                '''
+            }
+        }
   }
 
   post {
