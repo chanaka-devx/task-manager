@@ -12,9 +12,9 @@ const handleValidation = (req) => {
   }
 };
 
-const signup = (role) => asyncHandler(async (req, res) => {
+const signup = asyncHandler(async (req, res) => {
   handleValidation(req);
-  const { name, email, password } = req.body;
+  const { name, email, password, role } = req.body;
 
   const existing = await User.findOne({ email });
   if (existing) {
@@ -23,7 +23,8 @@ const signup = (role) => asyncHandler(async (req, res) => {
     throw err;
   }
 
-  const user = await User.create({ name, email, password, role });
+  const userRole = role || 'user';
+  const user = await User.create({ name, email, password, role: userRole });
   const token = generateToken({ id: user._id, role: user.role });
   res.status(201).json({
     token,
@@ -33,10 +34,10 @@ const signup = (role) => asyncHandler(async (req, res) => {
   });
 });
 
-const login = (role) => asyncHandler(async (req, res) => {
+const login = asyncHandler(async (req, res) => {
   handleValidation(req);
   const { email, password } = req.body;
-  const user = await User.findOne({ email, role });
+  const user = await User.findOne({ email });
   if (!user) {
     const err = new Error('Invalid credentials');
     err.statusCode = 401;

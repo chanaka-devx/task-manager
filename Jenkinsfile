@@ -39,22 +39,56 @@ pipeline {
     stage('Prep') {
       steps {
         script {
-          // Get git commit SHA
-          env.GIT_SHORT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          // Get git commit SHA with fallback
+          def gitSha = ''
+          try {
+            gitSha = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          } catch (Exception e) {
+            echo "Warning: Could not get git SHA: ${e.message}"
+            gitSha = "build-${env.BUILD_NUMBER}"
+          }
           
-          // Get branch name
-          def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'main'
+          if (!gitSha || gitSha == '' || gitSha == 'null') {
+            gitSha = "build-${env.BUILD_NUMBER}"
+          }
+          env.GIT_SHORT_SHA = gitSha
+          
+          // Get branch name with multiple fallbacks
+          def branch = ''
+          if (env.BRANCH_NAME) {
+            branch = env.BRANCH_NAME
+          } else if (env.GIT_BRANCH) {
+            branch = env.GIT_BRANCH
+          } else {
+            try {
+              branch = sh(returnStdout: true, script: 'git symbolic-ref --short HEAD 2>/dev/null || echo "main"').trim()
+            } catch (Exception e) {
+              echo "Warning: Could not get branch: ${e.message}"
+              branch = 'main'
+            }
+          }
+          
+          if (!branch || branch == '' || branch == 'null' || branch == 'HEAD') {
+            branch = 'main'
+          }
+          
           if (branch.startsWith('origin/')) {
             branch = branch.substring(7)
           }
           
           // Sanitize branch name
-          env.BRANCH_TAG = branch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
+          def sanitized = branch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
+          if (!sanitized || sanitized == '' || sanitized == 'null') {
+            sanitized = 'main'
+          }
+          env.BRANCH_TAG = sanitized
           
+          echo "=== Build Info ==="
           echo "Branch: ${env.BRANCH_TAG}"
           echo "Commit: ${env.GIT_SHORT_SHA}"
-          echo "Backend Image: ${env.DOCKERHUB_USERNAME}/${env.BACKEND_IMAGE}:${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
-          echo "Frontend Image: ${env.DOCKERHUB_USERNAME}/${env.FRONTEND_IMAGE}:${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
+          echo "Backend: ${env.DOCKERHUB_USERNAME}/${env.BACKEND_IMAGE}:${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
+          echo "Frontend: ${env.DOCKERHUB_USERNAME}/${env.FRONTEND_IMAGE}:${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
+          echo "=================="
         }
       }
     }

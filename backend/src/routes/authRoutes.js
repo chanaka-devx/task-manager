@@ -4,12 +4,8 @@ const { signup, login } = require('../controllers/authController');
 
 const router = express.Router();
 
-// Admin routes
-router.post('/signup', signupValidation, signup('admin'));
-router.post('/login', loginValidation, login('admin'));
-
-// Customer routes
-router.post('/signup', signupValidation, signup('customer'));
-router.post('/login', loginValidation, login('customer'));
+// Auth routes
+router.post('/signup', signupValidation, signup);
+router.post('/login', loginValidation, login);
 
 module.exports = router;
