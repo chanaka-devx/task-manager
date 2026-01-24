@@ -49,8 +49,25 @@ pipeline {
           // short SHA
           env.GIT_SHORT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
 
+          // Get branch name - handle detached HEAD state in Jenkins
+          def rawBranch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'unknown'
+          
+          // If still empty or "HEAD", try to get from Git
+          if (!rawBranch || rawBranch == 'HEAD' || rawBranch == 'unknown') {
+            rawBranch = sh(returnStdout: true, script: '''
+              git rev-parse --abbrev-ref HEAD | grep -v "^HEAD$" || \
+              git symbolic-ref --short HEAD 2>/dev/null || \
+              git describe --all --exact-match 2>/dev/null | sed 's#.*/##' || \
+              echo "commit-${BUILD_NUMBER}"
+            ''').trim()
+          }
+          
+          // Remove origin/ prefix if present
+          if (rawBranch.startsWith('origin/')) {
+            rawBranch = rawBranch.replaceFirst('origin/', '')
+          }
+          
           // sanitize branch name (replace slashes and spaces)
-          def rawBranch = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
           env.SANITIZED_BRANCH = rawBranch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
 
           // Compute tags and full image refs
