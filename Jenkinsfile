@@ -98,14 +98,23 @@ pipeline {
           
           env.SANITIZED_BRANCH = sanitizedBranch
 
+          // Get Docker Hub namespace with fallback
+          def dockerhubNamespace = params.DOCKERHUB_NAMESPACE ?: 'chanakamadhuranga'
+          def backendImageName = params.BACKEND_IMAGE ?: 'task-manager-server'
+          def frontendImageName = params.FRONTEND_IMAGE ?: 'task-manager'
+          
+          echo "Docker Hub Namespace: ${dockerhubNamespace}"
+          echo "Backend Image Name: ${backendImageName}"
+          echo "Frontend Image Name: ${frontendImageName}"
+
           // Compute tags and full image refs
           def backendTag = "${sanitizedBranch}-${gitSha}"
           def frontendTag = "${sanitizedBranch}-${gitSha}"
           
           env.BACKEND_TAG = backendTag
           env.FRONTEND_TAG = frontendTag
-          env.BACKEND_IMAGE_REF = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${backendTag}"
-          env.FRONTEND_IMAGE_REF = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${frontendTag}"
+          env.BACKEND_IMAGE_REF = "${dockerhubNamespace}/${backendImageName}:${backendTag}"
+          env.FRONTEND_IMAGE_REF = "${dockerhubNamespace}/${frontendImageName}:${frontendTag}"
 
           echo "Raw Branch: ${rawBranch}"
           echo "Sanitized Branch: ${sanitizedBranch}"
@@ -185,10 +194,14 @@ pipeline {
             sh "docker push '${frontendImage}'"
 
             // Push latest tag if main/master
+            def dockerhubNamespace = params.DOCKERHUB_NAMESPACE ?: 'chanakamadhuranga'
+            def backendImageName = params.BACKEND_IMAGE ?: 'task-manager-server'
+            def frontendImageName = params.FRONTEND_IMAGE ?: 'task-manager'
+            
             boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (sanitizedBranch == 'main' || sanitizedBranch == 'master')
             if (pushLatest) {
-              def backendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:latest"
-              def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
+              def backendLatest = "${dockerhubNamespace}/${backendImageName}:latest"
+              def frontendLatest = "${dockerhubNamespace}/${frontendImageName}:latest"
               echo "Also pushing latest tags..."
               sh """
                 docker tag '${backendImage}' '${backendLatest}'
