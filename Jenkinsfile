@@ -20,7 +20,10 @@ pipeline {
     // Deployment configuration
     DEPLOY_HOST = 'root@143.198.197.174'
     MONGODB_URI = 'mongodb://mongo:27017/taskmanager'
-    
+
+    TF_VAR_do_token = credentials('do_token')
+    TF_VAR_ssh_fingerprint = credentials('ssh_fingerprint')
+
     // Dynamic values
     GIT_SHORT_SHA = ''
     BRANCH_TAG = ''
