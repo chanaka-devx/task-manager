@@ -19,6 +19,3 @@ resource "digitalocean_droplet" "task_manager_vm" {
 
   ssh_keys = [var.ssh_fingerprint]
 }
-
-
-
