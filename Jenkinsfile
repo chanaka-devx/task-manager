@@ -46,39 +46,72 @@ pipeline {
     stage('Prep') {
       steps {
         script {
-          // short SHA
-          env.GIT_SHORT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-
-          // Get branch name - handle detached HEAD state in Jenkins
-          def rawBranch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'unknown'
+          // Get short SHA - with fallback
+          def gitSha = ''
+          try {
+            gitSha = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          } catch (Exception e) {
+            echo "Warning: Could not get git SHA: ${e.message}"
+            gitSha = "build-${env.BUILD_NUMBER}"
+          }
           
-          // If still empty or "HEAD", try to get from Git
-          if (!rawBranch || rawBranch == 'HEAD' || rawBranch == 'unknown') {
-            rawBranch = sh(returnStdout: true, script: '''
-              git rev-parse --abbrev-ref HEAD | grep -v "^HEAD$" || \
-              git symbolic-ref --short HEAD 2>/dev/null || \
-              git describe --all --exact-match 2>/dev/null | sed 's#.*/##' || \
-              echo "commit-${BUILD_NUMBER}"
-            ''').trim()
+          if (!gitSha || gitSha == '') {
+            gitSha = "build-${env.BUILD_NUMBER}"
+          }
+          env.GIT_SHORT_SHA = gitSha
+
+          // Get branch name - check Jenkins env vars first
+          def rawBranch = ''
+          
+          // Try Jenkins environment variables
+          if (env.BRANCH_NAME) {
+            rawBranch = env.BRANCH_NAME
+          } else if (env.GIT_BRANCH) {
+            rawBranch = env.GIT_BRANCH
+          } else {
+            // Fallback to git command
+            try {
+              rawBranch = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+            } catch (Exception e) {
+              echo "Warning: Could not get branch name: ${e.message}"
+              rawBranch = "main"
+            }
+          }
+          
+          // Handle empty or HEAD
+          if (!rawBranch || rawBranch == '' || rawBranch == 'HEAD') {
+            rawBranch = "main"
           }
           
           // Remove origin/ prefix if present
           if (rawBranch.startsWith('origin/')) {
-            rawBranch = rawBranch.replaceFirst('origin/', '')
+            rawBranch = rawBranch.substring(7)
           }
           
-          // sanitize branch name (replace slashes and spaces)
-          env.SANITIZED_BRANCH = rawBranch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
+          // Sanitize branch name (replace slashes and special chars)
+          def sanitizedBranch = rawBranch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
+          
+          // Ensure it's not empty after sanitization
+          if (!sanitizedBranch || sanitizedBranch == '') {
+            sanitizedBranch = "main"
+          }
+          
+          env.SANITIZED_BRANCH = sanitizedBranch
 
           // Compute tags and full image refs
-          def tag = "${env.SANITIZED_BRANCH}-${env.GIT_SHORT_SHA}"
-          env.BACKEND_TAG = tag
-          env.FRONTEND_TAG = tag
-          env.BACKEND_IMAGE_REF = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${env.BACKEND_TAG}"
-          env.FRONTEND_IMAGE_REF = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${env.FRONTEND_TAG}"
+          def backendTag = "${sanitizedBranch}-${gitSha}"
+          def frontendTag = "${sanitizedBranch}-${gitSha}"
+          
+          env.BACKEND_TAG = backendTag
+          env.FRONTEND_TAG = frontendTag
+          env.BACKEND_IMAGE_REF = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${backendTag}"
+          env.FRONTEND_IMAGE_REF = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${frontendTag}"
 
-          echo "Branch: ${rawBranch} -> ${env.SANITIZED_BRANCH}"
-          echo "Commit: ${env.GIT_SHORT_SHA}"
+          echo "Raw Branch: ${rawBranch}"
+          echo "Sanitized Branch: ${sanitizedBranch}"
+          echo "Commit SHA: ${gitSha}"
+          echo "Backend Tag: ${backendTag}"
+          echo "Frontend Tag: ${frontendTag}"
           echo "Backend Image: ${env.BACKEND_IMAGE_REF}"
           echo "Frontend Image: ${env.FRONTEND_IMAGE_REF}"
         }
@@ -99,13 +132,9 @@ pipeline {
     stage('Docker Build') {
       steps {
         script {
-          // Recompute to ensure values are present
-          def computedSha = env.GIT_SHORT_SHA ?: sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-          def rawBranch = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-          def computedBranch = env.SANITIZED_BRANCH ?: rawBranch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
-          
-          def backendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${computedBranch}-${computedSha}"
-          def frontendImageRef = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${computedBranch}-${computedSha}"
+          // Use the environment variables set in Prep stage
+          def backendImageRef = env.BACKEND_IMAGE_REF
+          def frontendImageRef = env.FRONTEND_IMAGE_REF
 
           echo "Building Backend: ${backendImageRef}"
           echo "Building Frontend: ${frontendImageRef}"
@@ -133,55 +162,49 @@ pipeline {
               --build-arg NPM_REGISTRY='${params.NPM_REGISTRY}' \
               frontend
           """
-          
-          // Persist for push stage
-          env.BACKEND_IMAGE_REF = backendImageRef
-          env.FRONTEND_IMAGE_REF = frontendImageRef
         }
       }
     }
 
     stage('Docker Push') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: params.REGISTRY_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-                    script {
-                        def gitSha = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-                        def rawBranch = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-                        def sanitizedBranch = rawBranch.replaceAll('[^A-Za-z0-9._-]', '-').toLowerCase()
-                        
-                        def backendImage = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:${sanitizedBranch}-${gitSha}"
-                        def frontendImage = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:${sanitizedBranch}-${gitSha}"
-                        
-                        echo "Logging in to Docker Hub..."
-                        sh 'echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin'
+      steps {
+        withCredentials([usernamePassword(credentialsId: params.REGISTRY_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+          script {
+            // Use the environment variables set in Prep stage
+            def backendImage = env.BACKEND_IMAGE_REF
+            def frontendImage = env.FRONTEND_IMAGE_REF
+            def sanitizedBranch = env.SANITIZED_BRANCH
+            
+            echo "Logging in to Docker Hub..."
+            sh 'echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin'
 
-                        echo "Pushing Backend: ${backendImage}"
-                        sh "docker push ${backendImage}"
+            echo "Pushing Backend: ${backendImage}"
+            sh "docker push '${backendImage}'"
 
-                        echo "Pushing Frontend: ${frontendImage}"
-                        sh "docker push ${frontendImage}"
+            echo "Pushing Frontend: ${frontendImage}"
+            sh "docker push '${frontendImage}'"
 
-                        // Push latest tag if main/master
-                        boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (sanitizedBranch == 'main' || sanitizedBranch == 'master')
-                        if (pushLatest) {
-                            def backendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:latest"
-                            def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
-                            echo "Also pushing latest tags..."
-                            sh """
-                                docker tag ${backendImage} ${backendLatest}
-                                docker tag ${frontendImage} ${frontendLatest}
-                                docker push ${backendLatest}
-                                docker push ${frontendLatest}
-                            """
-                        } else {
-                            echo "Skipping latest tag push for branch ${sanitizedBranch}"
-                        }
-
-                        sh 'docker logout || true'
-                    }
-                }
+            // Push latest tag if main/master
+            boolean pushLatest = params.PUSH_LATEST_ON_MAIN && (sanitizedBranch == 'main' || sanitizedBranch == 'master')
+            if (pushLatest) {
+              def backendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.BACKEND_IMAGE}:latest"
+              def frontendLatest = "${params.DOCKERHUB_NAMESPACE}/${params.FRONTEND_IMAGE}:latest"
+              echo "Also pushing latest tags..."
+              sh """
+                docker tag '${backendImage}' '${backendLatest}'
+                docker tag '${frontendImage}' '${frontendLatest}'
+                docker push '${backendLatest}'
+                docker push '${frontendLatest}'
+              """
+            } else {
+              echo "Skipping latest tag push for branch ${sanitizedBranch}"
             }
+
+            sh 'docker logout || true'
+          }
         }
+      }
+    }
 
   }
   post {
