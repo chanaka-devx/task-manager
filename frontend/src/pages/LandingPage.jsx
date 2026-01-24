@@ -128,7 +128,7 @@ const LandingPage = () => {
                     <div className="w-10 h-10 bg-[#3B82F6] rounded-full flex items-center justify-center">
                       <Zap className="w-5 h-5 text-white" />
                     </div>
-                    <span className="font-medium text-[#111827]">Set Progress</span>
+                    
                   </div>
                 </div>
                 
