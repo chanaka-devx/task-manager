@@ -8,7 +8,7 @@ const { notFound, errorHandler } = require('./src/middleware/errorMiddleware');
 dotenv.config();
 
 const PORT = process.env.PORT || 4000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/todo_app';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/taskmanager';
 
 const app = express();
 
