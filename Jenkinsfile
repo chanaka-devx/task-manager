@@ -96,15 +96,29 @@ pipeline {
     stage('Docker Build') {
       steps {
         script {
-          def backendImage = "${env.DOCKERHUB_USERNAME}/${env.BACKEND_IMAGE}:${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
-          def frontendImage = "${env.DOCKERHUB_USERNAME}/${env.FRONTEND_IMAGE}:${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
+          def backendTag = "${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
+          def frontendTag = "${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
+          
+          def backendImage = "${env.DOCKERHUB_USERNAME}/${env.BACKEND_IMAGE}"
+          def frontendImage = "${env.DOCKERHUB_USERNAME}/${env.FRONTEND_IMAGE}"
 
-          echo "Building images..."
+          echo "Building images with multiple tags..."
           
           sh """
-            docker build -f backend/Dockerfile -t ${backendImage} backend
-            docker build -f frontend/Dockerfile -t ${frontendImage} frontend
+            docker build -f backend/Dockerfile \
+              -t ${backendImage}:${backendTag} \
+              -t ${backendImage}:latest \
+              -t ${backendImage}:build-${env.BUILD_NUMBER} \
+              backend
+              
+            docker build -f frontend/Dockerfile \
+              -t ${frontendImage}:${frontendTag} \
+              -t ${frontendImage}:latest \
+              -t ${frontendImage}:build-${env.BUILD_NUMBER} \
+              frontend
           """
+          
+          echo "Images built with tags: ${backendTag}, latest, build-${env.BUILD_NUMBER}"
         }
       }
     }
@@ -113,31 +127,29 @@ pipeline {
       steps {
         withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
           script {
-            def backendImage = "${env.DOCKERHUB_USERNAME}/${env.BACKEND_IMAGE}:${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
-            def frontendImage = "${env.DOCKERHUB_USERNAME}/${env.FRONTEND_IMAGE}:${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
+            def backendTag = "${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
+            def frontendTag = "${env.BRANCH_TAG}-${env.GIT_SHORT_SHA}"
+            
+            def backendImage = "${env.DOCKERHUB_USERNAME}/${env.BACKEND_IMAGE}"
+            def frontendImage = "${env.DOCKERHUB_USERNAME}/${env.FRONTEND_IMAGE}"
             
             echo "Logging in to Docker Hub..."
             sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
 
-            echo "Pushing images..."
+            echo "Pushing all image tags..."
             sh """
-              docker push ${backendImage}
-              docker push ${frontendImage}
-            """
-
-            // Push latest tag for main branch
-            if (env.BRANCH_TAG == 'main') {
-              def backendLatest = "${env.DOCKERHUB_USERNAME}/${env.BACKEND_IMAGE}:latest"
-              def frontendLatest = "${env.DOCKERHUB_USERNAME}/${env.FRONTEND_IMAGE}:latest"
+              docker push ${backendImage}:${backendTag}
+              docker push ${backendImage}:latest
+              docker push ${backendImage}:build-${env.BUILD_NUMBER}
               
-              echo "Tagging and pushing latest..."
-              sh """
-                docker tag ${backendImage} ${backendLatest}
-                docker tag ${frontendImage} ${frontendLatest}
-                docker push ${backendLatest}
-                docker push ${frontendLatest}
-              """
-            }
+              docker push ${frontendImage}:${frontendTag}
+              docker push ${frontendImage}:latest
+              docker push ${frontendImage}:build-${env.BUILD_NUMBER}
+            """
+            
+            echo "Pushed images:"
+            echo "  Backend: ${backendTag}, latest, build-${env.BUILD_NUMBER}"
+            echo "  Frontend: ${frontendTag}, latest, build-${env.BUILD_NUMBER}"
 
             sh 'docker logout'
           }
