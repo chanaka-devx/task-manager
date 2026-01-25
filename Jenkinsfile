@@ -18,7 +18,7 @@ pipeline {
     FRONTEND_IMAGE = 'task-manager'
     
     // Deployment configuration
-    DEPLOY_HOST = 'root@129.212.232.43
+    DEPLOY_HOST = 'root@129.212.232.43'
 '
     MONGODB_URI = 'mongodb://mongo:27017/taskmanager'
 
