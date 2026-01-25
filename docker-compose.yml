@@ -3,7 +3,7 @@ services:
     image: chanakamadhuranga/task-manager:latest
     container_name: frontend_c
     ports:
-      - '5173:5173'
+      - '5173:80'
     environment:
       - VITE_API_BASE_URL=http://129.212.232.43:4000
     depends_on:
