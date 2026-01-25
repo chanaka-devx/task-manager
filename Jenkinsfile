@@ -158,9 +158,6 @@ pipeline {
     }
 
     stage('Deploy') {
-      when {
-        branch 'main'
-      }
       steps {
         script {
           echo "Deploying to ${env.DEPLOY_HOST}..."
