@@ -168,64 +168,46 @@ pipeline {
           def backendImage = "${env.DOCKERHUB_USERNAME}/${env.BACKEND_IMAGE}:latest"
           def frontendImage = "${env.DOCKERHUB_USERNAME}/${env.FRONTEND_IMAGE}:latest"
           
-          // Create docker-compose content with latest images
-          def composeContent = """
-version: '3.8'
-
-services:
-  frontend:
-    image: ${frontendImage}
-    container_name: taskmanager-frontend
-    restart: unless-stopped
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_BASE_URL=http://129.212.232.43:4000
-    depends_on:
-      - backend
-    networks:
-      - taskmanager-network
-
-  backend:
-    image: ${backendImage}
-    container_name: taskmanager-backend
-    restart: unless-stopped
-    ports:
-      - "4000:4000"
-    environment:
-      - PORT=4000
-      - MONGODB_URI=${env.MONGODB_URI}
-      - JWT_SECRET=2e4a69a43c44c83194e29f5e4481364a8960294e3c3e90cb048188ca850f9c18
-      - NODE_ENV=production
-    depends_on:
-      - mongo
-    networks:
-      - taskmanager-network
-
-  mongo:
-    image: mongo:6
-    container_name: taskmanager-mongo
-    restart: unless-stopped
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - taskmanager-network
-
-volumes:
-  mongo_data:
-
-networks:
-  taskmanager-network:
-    driver: bridge
-"""
-          
-          // Write compose file
-          writeFile file: 'docker-compose.deploy.yml', text: composeContent
-          
           // Deploy to server
           sh """
-            scp -o StrictHostKeyChecking=no docker-compose.deploy.yml ${env.DEPLOY_HOST}:/root/docker-compose.yml
-            ssh -o StrictHostKeyChecking=no ${env.DEPLOY_HOST} 'docker-compose pull && docker-compose down && docker-compose up -d'
+            ssh -o StrictHostKeyChecking=no ${env.DEPLOY_HOST} '
+              echo "Pulling latest images..."
+              docker pull ${backendImage}
+              docker pull ${frontendImage}
+              
+              echo "Stopping and removing old containers..."
+              docker rm -f taskmanager-frontend taskmanager-backend taskmanager-mongo || true
+              
+              echo "Starting MongoDB..."
+              docker run -d \
+                --name taskmanager-mongo \
+                --restart unless-stopped \
+                -v mongo_data:/data/db \
+                mongo:6
+              
+              echo "Starting backend..."
+              docker run -d \
+                --name taskmanager-backend \
+                --restart unless-stopped \
+                -p 4000:4000 \
+                -e PORT=4000 \
+                -e MONGODB_URI=mongodb://taskmanager-mongo:27017/taskmanager \
+                -e JWT_SECRET=2e4a69a43c44c83194e29f5e4481364a8960294e3c3e90cb048188ca850f9c18 \
+                -e NODE_ENV=production \
+                --link taskmanager-mongo:mongo \
+                ${backendImage}
+              
+              echo "Starting frontend..."
+              docker run -d \
+                --name taskmanager-frontend \
+                --restart unless-stopped \
+                -p 5173:3000 \
+                -e VITE_API_BASE_URL=http://129.212.232.43:4000 \
+                ${frontendImage}
+              
+              echo "Deployment complete!"
+              docker ps --filter name=taskmanager
+            '
           """
           
           echo "Deployment complete! Images deployed:"
