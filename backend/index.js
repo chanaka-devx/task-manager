@@ -3,6 +3,8 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
+const taskRoutes = require('./src/routes/taskRoutes');
+const todoRoutes = require('./src/routes/todoRoutes');
 const { notFound, errorHandler } = require('./src/middleware/errorMiddleware');
 
 dotenv.config();
@@ -21,6 +23,8 @@ app.get('/', (req, res) => {
 
 // API routes
 app.use('/api', authRoutes);
+app.use('/api', taskRoutes);
+app.use('/api', todoRoutes);
 
 // Error handling
 app.use(notFound);

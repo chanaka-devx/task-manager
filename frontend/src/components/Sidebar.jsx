@@ -1,11 +1,11 @@
 import React from 'react';
-import { LayoutDashboard, ListChecks, Clock, UserCircle, LogOut } from 'lucide-react';
+import { LayoutDashboard, ListChecks, Clock, UserCircle, LogOut, ListTodo } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuth from '../context/useAuth';
 import logo from '../assets/logo.png';
 
 // Collapsible sidebar (toggle handled externally)
-const Sidebar = ({ collapsed = false }) => {
+const Sidebar = ({ collapsed = false, activeView = 'overview', onViewChange }) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
@@ -14,7 +14,7 @@ const Sidebar = ({ collapsed = false }) => {
     navigate('/login');
   };
 
-  const baseAside = "flex flex-col bg-white/90 backdrop-blur-md border-r border-blue-100 shadow-lg rounded-3xl transition-all duration-300 ease-in-out";
+  const baseAside = "flex flex-col h-[90vh] bg-white/90 backdrop-blur-md border-r border-blue-100 shadow-lg rounded-3xl transition-all duration-300 ease-in-out sticky top-0";
   const widthClass = collapsed ? "w-20" : "w-64";
 
   return (
@@ -31,19 +31,54 @@ const Sidebar = ({ collapsed = false }) => {
 
       {/* Nav */}
       <nav className={`flex-1 space-y-2 ${collapsed ? 'px-4' : 'px-6'} transition-all duration-300`}>
-        <Link to="/dashboard" className={`flex items-center rounded-xl text-sm font-medium text-[#111827] hover:bg-blue-50 hover:text-[#3B82F6] transition ${collapsed ? 'justify-center px-3 py-3' : 'space-x-3 px-4 py-3'}`}>
+        <button 
+          onClick={() => onViewChange('overview')}
+          className={`w-full flex items-center rounded-xl text-sm font-medium transition ${collapsed ? 'justify-center px-3 py-3' : 'space-x-3 px-4 py-3'} ${
+            activeView === 'overview' 
+              ? 'bg-blue-100 text-[#3B82F6]' 
+              : 'text-[#111827] hover:bg-blue-50 hover:text-[#3B82F6]'
+          }`}
+        >
           <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
           <span className={`whitespace-nowrap transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>Overview</span>
-        </Link>
-        <Link to="/dashboard" className={`flex items-center rounded-xl text-sm font-medium text-[#111827] hover:bg-blue-50 hover:text-[#3B82F6] transition ${collapsed ? 'justify-center px-3 py-3' : 'space-x-3 px-4 py-3'}`}>
+        </button>
+        <button 
+          onClick={() => onViewChange('tasks')}
+          className={`w-full flex items-center rounded-xl text-sm font-medium transition ${collapsed ? 'justify-center px-3 py-3' : 'space-x-3 px-4 py-3'} ${
+            activeView === 'tasks' 
+              ? 'bg-blue-100 text-[#3B82F6]' 
+              : 'text-[#111827] hover:bg-blue-50 hover:text-[#3B82F6]'
+          }`}
+        >
           <ListChecks className="w-5 h-5 flex-shrink-0" />
           <span className={`whitespace-nowrap transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>Tasks</span>
-        </Link>
-        <Link to="/dashboard" className={`flex items-center rounded-xl text-sm font-medium text-[#111827] hover:bg-blue-50 hover:text-[#3B82F6] transition ${collapsed ? 'justify-center px-3 py-3' : 'space-x-3 px-4 py-3'}`}>
+        </button>
+        <button 
+          onClick={() => onViewChange('activity')}
+          className={`w-full flex items-center rounded-xl text-sm font-medium transition ${collapsed ? 'justify-center px-3 py-3' : 'space-x-3 px-4 py-3'} ${
+            activeView === 'activity' 
+              ? 'bg-blue-100 text-[#3B82F6]' 
+              : 'text-[#111827] hover:bg-blue-50 hover:text-[#3B82F6]'
+          }`}
+        >
           <Clock className="w-5 h-5 flex-shrink-0" />
           <span className={`whitespace-nowrap transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>Activity</span>
-        </Link>
+        </button>
+        <button 
+          onClick={() => onViewChange('todo')}
+          className={`w-full flex items-center rounded-xl text-sm font-medium transition ${collapsed ? 'justify-center px-3 py-3' : 'space-x-3 px-4 py-3'} ${
+            activeView === 'todo' 
+              ? 'bg-blue-100 text-[#3B82F6]' 
+              : 'text-[#111827] hover:bg-blue-50 hover:text-[#3B82F6]'
+          }`}
+        >
+          <ListTodo className="w-5 h-5 flex-shrink-0" />
+          <span className={`whitespace-nowrap transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>Todo Lists</span>
+        </button>
       </nav>
+
+      {/* Spacer to push user section to bottom */}
+      <div className="flex-1"></div>
 
       {/* User + Logout */}
       <div className={`space-y-4 pb-6 ${collapsed ? 'px-4' : 'px-6'} transition-all duration-300`}>
@@ -52,7 +87,6 @@ const Sidebar = ({ collapsed = false }) => {
             <UserCircle className="w-8 h-8 text-[#3B82F6] flex-shrink-0" />
             <div className={`transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
               <p className="text-sm font-semibold text-[#111827] whitespace-nowrap">{user.email}</p>
-              <p className="text-xs text-gray-500 whitespace-nowrap">{user.role || 'User'}</p>
             </div>
           </div>
         )}

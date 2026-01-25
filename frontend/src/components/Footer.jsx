@@ -28,19 +28,19 @@ const Footer = () => {
             <h3 className="font-semibold text-[#111827] mb-4">Quick Link</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#home" className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm">
+                <Link to="/#home" className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm">
                   Home
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#features" className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm">
+                <Link to="/#features" className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm">
                   Features
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#pricing" className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm">
-                  Pricing
-                </a>
+                <Link to="/#testimonials" className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm">
+                  Testimonials
+                </Link>
               </li>
             </ul>
           </div>
@@ -50,26 +50,38 @@ const Footer = () => {
             <h3 className="font-semibold text-[#111827] mb-4">About</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm">
+                <Link 
+                  to="/terms" 
+                  onClick={() => window.scrollTo(0, 0)}
+                  className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm"
+                >
                   Terms & conditions
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm">
+                <Link 
+                  to="/support" 
+                  onClick={() => window.scrollTo(0, 0)}
+                  className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm"
+                >
                   Customer Support
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm">
-                  Contact Us
-                </a>
+                <Link 
+                  to="/contact" 
+                  onClick={() => window.scrollTo(0, 0)}
+                  className="text-gray-600 hover:text-[#3B82F6] transition-colors text-sm"
+                >
+                  Contact Us (Beta)
+                </Link>
               </li>
             </ul>
           </div>
 
           {/* Newsletter */}
           <div>
-            <h3 className="font-semibold text-[#111827] mb-4">Newsletter</h3>
+            <h3 className="font-semibold text-[#111827] mb-4">Newsletter (Beta)</h3>
             <p className="text-gray-600 text-sm mb-4">Stay up to date</p>
             <div className="flex flex-col gap-2">
               <input 
@@ -99,34 +111,34 @@ const Footer = () => {
 
             {/* Copyright */}
             <div className="text-gray-600 text-sm">
-              © {new Date().getFullYear()} All Rights Reserved
+              © {new Date().getFullYear()} MCM Softwares - All Rights Reserved
             </div>
 
             {/* Social Links */}
             <div className="flex items-center space-x-4">
               <a 
-                href="#" 
+                href="https://www.facebook.com" 
                 className="w-10 h-10 bg-gradient-to-br from-blue-50 to-white rounded-full flex items-center justify-center hover:from-[#3B82F6] hover:to-[#60A5FA] hover:text-white transition-all text-[#3B82F6] shadow-sm hover:shadow-md border border-blue-100"
                 aria-label="Facebook"
               >
                 <Facebook className="w-5 h-5" />
               </a>
               <a 
-                href="#" 
+                href="https://www.twitter.com" 
                 className="w-10 h-10 bg-gradient-to-br from-blue-50 to-white rounded-full flex items-center justify-center hover:from-[#3B82F6] hover:to-[#60A5FA] hover:text-white transition-all text-[#3B82F6] shadow-sm hover:shadow-md border border-blue-100"
                 aria-label="Twitter"
               >
                 <Twitter className="w-5 h-5" />
               </a>
               <a 
-                href="#" 
+                href="https://www.youtube.com" 
                 className="w-10 h-10 bg-gradient-to-br from-blue-50 to-white rounded-full flex items-center justify-center hover:from-[#3B82F6] hover:to-[#60A5FA] hover:text-white transition-all text-[#3B82F6] shadow-sm hover:shadow-md border border-blue-100"
                 aria-label="Youtube"
               >
                 <Youtube className="w-5 h-5" />
               </a>
               <a 
-                href="#" 
+                href="https://www.linkedin.com" 
                 className="w-10 h-10 bg-gradient-to-br from-blue-50 to-white rounded-full flex items-center justify-center hover:from-[#3B82F6] hover:to-[#60A5FA] hover:text-white transition-all text-[#3B82F6] shadow-sm hover:shadow-md border border-blue-100"
                 aria-label="LinkedIn"
               >

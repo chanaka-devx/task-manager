@@ -15,6 +15,11 @@ import Footer from '../components/Footer';
 const LandingPage = () => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
+  // Check if user is logged in
+  const isLoggedIn = () => {
+    return localStorage.getItem('token') !== null;
+  };
+
   const features = [
     {
       icon: <CheckCircle className="w-8 h-8 text-[#10B981]" />,
@@ -77,7 +82,7 @@ const LandingPage = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <Link 
-              to="/login"
+              to={isLoggedIn() ? "/dashboard" : "/login"}
               className="group inline-flex items-center space-x-3 px-8 py-3 bg-gradient-to-r from-[#3B82F6] to-[#60A5FA] hover:from-[#2563EB] hover:to-[#3B82F6] text-white rounded-full text-sm font-semibold mb-6 mt-2 shadow-lg hover:shadow-2xl hover:shadow-blue-400/50 transition-all duration-500 hover:scale-105"
             >
               <span>Go to Your Dashboard</span>
@@ -94,7 +99,7 @@ const LandingPage = () => {
             
 
             {/* Hero Image - Phone Mockups with Floating Cards */}
-            <div className="relative max-w-6xl mx-auto">
+            <div className="relative max-w-6xl mx-auto hidden lg:block">
               {/* Left Floating Cards */}
               <div className="absolute left-0 top-20 space-y-4 hidden lg:block animate-float">
                 {/* Set Priority Card */}
@@ -128,7 +133,7 @@ const LandingPage = () => {
                     <div className="w-10 h-10 bg-[#3B82F6] rounded-full flex items-center justify-center">
                       <Zap className="w-5 h-5 text-white" />
                     </div>
-                    
+                    <span className="font-medium text-[#111827]">Set Progress</span>
                   </div>
                 </div>
                 

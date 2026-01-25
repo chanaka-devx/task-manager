@@ -14,7 +14,7 @@ const handleValidation = (req) => {
 
 const signup = asyncHandler(async (req, res) => {
   handleValidation(req);
-  const { name, email, password, role } = req.body;
+  const { name, email, password } = req.body;
 
   const existing = await User.findOne({ email });
   if (existing) {
@@ -23,8 +23,7 @@ const signup = asyncHandler(async (req, res) => {
     throw err;
   }
 
-  const userRole = role || 'user';
-  const user = await User.create({ name, email, password, role: userRole });
+  const user = await User.create({ name, email, password });
   const token = generateToken({ id: user._id, role: user.role });
   res.status(201).json({
     token,

@@ -35,13 +35,13 @@ const Navbar = () => {
               Features
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#3B82F6] rounded-full group-hover:w-full transition-all duration-300"></span>
             </a>
-            <a 
-              href="#about" 
+            <Link 
+              to="/about" 
               className="text-[#111827] font-medium text-base hover:text-[#3B82F6] transition-colors relative group"
             >
               About
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#3B82F6] rounded-full group-hover:w-full transition-all duration-300"></span>
-            </a>
+            </Link>
           </div>
 
           {/* Auth Buttons - Desktop */}
@@ -101,13 +101,13 @@ const Navbar = () => {
                 >
                   Pricing
                 </a>
-                <a 
-                  href="#about" 
+                <Link 
+                  to="/about" 
                   className="text-[#111827] font-medium px-4 py-2 rounded-lg hover:bg-blue-50 hover:text-[#3B82F6] transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   About
-                </a>
+                </Link>
                 <div className="pt-4 border-t border-blue-100 space-y-3">
                   <Link 
                     to="/login" 
