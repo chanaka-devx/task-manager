@@ -173,7 +173,7 @@ pipeline {
               docker pull ${frontendImage}
               
               echo "Stopping and removing old containers..."
-              docker rm -f taskmanager-frontend taskmanager-backend taskmanager-mongo || true
+              docker rm -f taskmanager-frontend taskmanager-backend taskmanager-mongo frontend backend mongo frontend_c backend_c mongo_c || true
               
               echo "Starting MongoDB..."
               docker run -d \
@@ -198,7 +198,7 @@ pipeline {
               docker run -d \
                 --name taskmanager-frontend \
                 --restart unless-stopped \
-                -p 5173:3000 \
+                -p 5173:5173 \
                 -e VITE_API_BASE_URL=http://129.212.232.43:4000 \
                 ${frontendImage}
               
