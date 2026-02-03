@@ -1,7 +1,7 @@
 services:
   frontend:
     image: chanakamadhuranga/task-manager:latest
-    container_name: frontend_c
+    container_name: taskmanager-frontend
     ports:
       - '5173:80'
     environment:
@@ -12,20 +12,20 @@ services:
       
   backend:
     image: chanakamadhuranga/task-manager-server:latest
-    container_name: backend_c
+    container_name: taskmanager-backend
     ports:
       - '4000:4000'
     environment:
       - PORT=4000
-      - MONGODB_URI=mongodb://mongo:27017/taskmanager
+      - MONGODB_URI=mongodb://taskmanager-mongo:27017/taskmanager
       - JWT_SECRET=2e4a69a43c44c83194e29f5e4481364a8960294e3c3e90cb048188ca850f9c18
     depends_on:
-      - mongo
+      - taskmanager-mongo
     restart: unless-stopped
       
   mongo:
     image: mongo:6
-    container_name: mongo_c
+    container_name: taskmanager-mongo
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db
