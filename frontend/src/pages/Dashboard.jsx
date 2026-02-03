@@ -50,7 +50,8 @@ const Dashboard = () => {
 
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
-      if (timePeriod) params.append('timePeriod', timePeriod);
+      // Only apply time period filter if not in activity view and if it's not 'all'
+      if (timePeriod && timePeriod !== 'all' && activeView !== 'activity') params.append('timePeriod', timePeriod);
 
       const response = await fetch(`${BASE_URL}/api/tasks?${params.toString()}`, {
         headers: {
@@ -77,7 +78,7 @@ const Dashboard = () => {
   // Fetch tasks on mount and when filters change
   useEffect(() => {
     fetchTasks();
-  }, [searchTerm, timePeriod]);
+  }, [searchTerm, timePeriod, activeView]);
 
   // Restore persisted state
   useEffect(() => {
@@ -380,6 +381,18 @@ const Dashboard = () => {
                   
                   {showFilterMenu && (
                     <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50">
+                      <button
+                        onClick={() => {
+                          setTimePeriod('all');
+                          setShowFilterMenu(false);
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-blue-50 transition-colors flex items-center gap-2 ${
+                          timePeriod === 'all' ? 'bg-blue-50 text-[#3B82F6] font-semibold' : 'text-gray-700'
+                        }`}
+                      >
+                        <Calendar className="w-4 h-4" />
+                        All Tasks
+                      </button>
                       <button
                         onClick={() => {
                           setTimePeriod('week');
