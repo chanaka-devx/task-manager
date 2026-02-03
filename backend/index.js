@@ -13,7 +13,7 @@ const { client } = require("./metrics");
 dotenv.config();
 
 const PORT = process.env.PORT || 4000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/taskmanager';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URL;
 
 const app = express();
 
@@ -61,7 +61,7 @@ app.use(notFound);
 app.use(errorHandler);
 
 connectDB(MONGODB_URI).then(() => {
-  app.listen(PORT, () => {
+  app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server listening on port ${PORT}`);
   });
 });
