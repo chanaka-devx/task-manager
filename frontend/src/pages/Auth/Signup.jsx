@@ -257,7 +257,7 @@ const Signup = () => {
                       required
                     />
                     <span className="text-sm text-gray-600 group-hover:text-[#111827] transition-colors">
-                      I agree to the <a href="#" className="text-[#3B82F6] hover:text-[#2563EB] font-medium">Terms of Service</a> and <a href="#" className="text-[#3B82F6] hover:text-[#2563EB] font-medium">Privacy Policy</a>
+                      I agree to the <Link to="/terms" className="text-[#3B82F6] hover:text-[#2563EB] font-medium">Terms of Service</Link> and <Link to="/terms" className="text-[#3B82F6] hover:text-[#2563EB] font-medium">Privacy Policy</Link>
                     </span>
                   </label>
                 </div>
