@@ -50,8 +50,8 @@ const Dashboard = () => {
 
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
-      // Only apply time period filter if not in activity view and if it's not 'all'
-      if (timePeriod && timePeriod !== 'all' && activeView !== 'activity') params.append('timePeriod', timePeriod);
+      // Always apply time period filter
+      if (timePeriod) params.append('timePeriod', timePeriod);
 
       const response = await fetch(`${BASE_URL}/api/tasks?${params.toString()}`, {
         headers: {
