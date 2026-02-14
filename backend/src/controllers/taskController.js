@@ -16,20 +16,34 @@ const getTasks = asyncHandler(async (req, res) => {
   }
   
   // Apply time period filter
-  if (timePeriod) {
+  if (timePeriod && timePeriod !== 'all') {
     const now = new Date();
+    // Get start of today in local timezone
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     let startDate;
     
     if (timePeriod === 'week') {
-      startDate = new Date(now);
-      startDate.setDate(now.getDate() - now.getDay());
-      startDate.setHours(0, 0, 0, 0);
+      // Get the day of week (0 = Sunday, 1 = Monday, etc.)
+      const dayOfWeek = now.getDay();
+      // Calculate days to subtract to get to Sunday (0)
+      const daysToSubtract = dayOfWeek;
+      startDate = new Date(todayStart);
+      startDate.setDate(startDate.getDate() - daysToSubtract);
     } else if (timePeriod === 'month') {
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      // First day of current month
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     }
     
     if (startDate) {
-      query.date = { $gte: startDate };
+      // Filter for dates >= start of period (inclusive) and < start of next period
+      const endDate = new Date(now);
+      endDate.setDate(endDate.getDate() + 1);
+      endDate.setHours(0, 0, 0, 0);
+      
+      query.date = { 
+        $gte: startDate,
+        $lt: endDate
+      };
     }
   }
   
