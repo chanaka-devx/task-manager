@@ -426,7 +426,7 @@ const Dashboard = () => {
                   onClick={() => setIsModalOpen(true)}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#60A5FA] text-white text-sm font-semibold shadow-md hover:from-[#2563EB] hover:to-[#3B82F6] transition-all">
                   <Plus className="w-4 h-4" />
-                  Chanaka
+                  Create
                 </button>
               </div>
             </div>
